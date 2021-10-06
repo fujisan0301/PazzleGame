@@ -1,41 +1,55 @@
-let CharHandle = [
+let charIMG = [
 	'../imgs/Char/Player/trim_0.png',
 	'../imgs/Char/Player/trim_1.png',
 	'../imgs/Char/Player/trim_2.png',
 ];
-let EneHandle = [
+let enemyIMG = [
 	'../imgs/Char/Enemy/Enemy_0.png',
 ];
-let BGHandle = [
+let bgIMG = [
 	'../imgs/TALK_BG.jpg',
 ];
 
-let Page = 0, BackGround = 0;
+let Page = -1, old_page = 0, LoadFlag = false;
 const TITLE = 0, GAME = 1, TALK = 2;
 let up = false, down = false, right = false, left = false, space = false;
-let x = 0, y = 0, frame = 0, Life = 20;
+let x = 0, P_oldX, y = 0, P_oldY, frame = 0, Life = 20;
 let chara, charStyle, obsStyle;
-let P_oldX, P_oldY, Around_Obs;
-const MOVE_WAIT = 10;//移動キーを押したとき、隣のマスに移動するためにかかるフレーム数
-const MOVE_DIST = 10;//仕様変更の際はMOVE_WAIT * MOVE_DISTが100になるように調整
-const MOVE_OBS = 100;
-let dmCount = 0, obsCount = 0;
-let old_page = 0;
-let LoadFlag = false;
+const MOVE_WAIT = 6;//移動キーを押したとき、隣のマスに移動するためにかかるフレーム数 //開発環境が165Hzのせいでズレるねん...60Hzだと2が最適(165:60 = 6:xの式より) 
 let SCREEN_WIDTH, SCREEN_HEIGHT;
 let obsHandle = [], dmgHandle = [], enmHandle = [];
+let charHandle = [], enemyHandle = [], bgHandle = [];
 
-preload();
+
 let screen = document.createElement('div');
 screen.id = 'screen';
 document.body.appendChild(screen);
 
+function preload() {
+	for (let i = 0; i < charIMG.length; i++) {
+		let img = document.createElement('img');
+		img.src = charIMG[i];
+		charHandle.push(img);
+	}
+	for (let i = 0; i < bgIMG.length; i++) {
+		let img = document.createElement('img');
+		img.src = bgIMG[i];
+		bgHandle.push(img);
+	}
+	console.log("LOAD");
+}
+
 function main() {
 	if (old_page != Page) {
 		LoadFlag = false;
+		preload();
 		Init();
 	}
 	old_page = Page;
+
+	if (Page == -1) {
+		Page = 0;
+	}
 
 	if (LoadFlag) {
 		PLAY();
@@ -51,13 +65,12 @@ function main() {
 	}, false);
 
 	requestAnimationFrame(main);
-	console.log(frame);
 }
 requestAnimationFrame(main);
 
 function Background(num) {
 	let bg = document.createElement('img');
-	bg.src = BGHandle[num];
+	bg.src = bgHandle[num].src;
 	bg.style.position = 'absolute';
 	bg.style.width = "100vw";
 	bg.style.height = "100vh";
@@ -73,7 +86,8 @@ function PLAY() {
 			break;
 
 		case GAME:	//GAMEを描画するメソッド
-			Kick_Obstacle();
+			Kick(obsHandle, 0);
+			Kick(enmHandle, 1);
 			document.getElementById('LIFE').innerHTML = "LIFE " + Life;
 			//Damage();
 			break;
@@ -97,16 +111,28 @@ function Init() {
 			break;
 
 		case GAME:	//GAMEを描画するメソッド
+			while (obsHandle[0] != null) {
+				obsHandle.pop();
+			}
+			while (dmgHandle[0] != null) {
+				dmgHandle.pop();
+			}
+			while (enmHandle[0] != null) {
+				enmHandle.pop();
+			}
 			RenderMap();
 			let c = document.createElement('img');
-			c.src = CharHandle[0];
+			c.src = charHandle[0].src;
+			c.src = charHandle[1].src;
+			c.src = charHandle[2].src;
 			c.id = 'chara';
+			chara = c;
 			c.style.width = SCREEN_HEIGHT / 10 - SCREEN_HEIGHT / 50 + "px";
 			c.style.height = SCREEN_HEIGHT / 10 - SCREEN_HEIGHT / 50 + "px";
 			x = 51 * (SCREEN_HEIGHT / 100);
 			y = 61 * (SCREEN_HEIGHT / 100);
 			c.style.position = 'absolute';
-			document.getElementById('screen').appendChild(c);
+			screen.appendChild(c);
 			LoadFlag = true;
 			//LIFE
 			let l = document.createElement('p');
@@ -139,16 +165,16 @@ function Control() {
 
 		case GAME:
 			if (frame > 0) {
-				if (frame > 7) {
-					document.getElementById('chara').src = CharHandle[1];
+				if (frame > MOVE_WAIT / 3) {
+					chara.src = charHandle[1].src;
 				}
-				if (3 < frame && frame < 7) {
-					document.getElementById('chara').src = CharHandle[2];
+				if (MOVE_WAIT / 3 < frame && frame < MOVE_WAIT / 3 * 2) {
+					chara.src = charHandle[2].src;
 				}
-				if (left) x -= SCREEN_HEIGHT / 100;
-				if (right) x += SCREEN_HEIGHT / 100;
-				if (up) y -= SCREEN_HEIGHT / 100;
-				if (down) y += SCREEN_HEIGHT / 100;
+				if (left) x -= SCREEN_HEIGHT / (MOVE_WAIT * 10);
+				if (right) x += SCREEN_HEIGHT / (MOVE_WAIT * 10);
+				if (up) y -= SCREEN_HEIGHT / (MOVE_WAIT * 10);
+				if (down) y += SCREEN_HEIGHT / (MOVE_WAIT * 10);
 			}
 			else {
 				if (Damage()) {
@@ -158,8 +184,8 @@ function Control() {
 			}
 			if(frame > -2) frame--;
 
-			document.getElementById('chara').style.left = x + 'px';
-			document.getElementById('chara').style.top = y + 'px';
+			chara.style.left = x + 'px';
+			chara.style.top = y + 'px';
 			break;
 
 		case TALK:
@@ -192,7 +218,6 @@ function KeyDown(event) {
 		case GAME:
 			if (frame < 0) {
 				if (!up && !down && !left && !right) {
-					chara = document.getElementById('chara');
 					charStyle = window.getComputedStyle(chara);
 					P_oldX = Number(charStyle.getPropertyValue('left').replace("px", ""));
 					P_oldY = Number(charStyle.getPropertyValue('top').replace("px", ""));
@@ -216,7 +241,7 @@ function KeyDown(event) {
 
 function KeyUp() {
 	if (frame < -1) {
-		document.getElementById('chara').src = CharHandle[0];
+		chara.src = charHandle[0].src;
 		left = false;
 		up = false;
 		right = false;
@@ -226,8 +251,7 @@ function KeyUp() {
 
 function RenderMap() {
 	//let height = document.documentElement.clientHeight;
-	obsCount = 0;
-	let eneCount = 0;
+	let dmCount = 0, obsCount = 0, eneCount = 0;
 	let massCount = 0;
 	dmCount = 0;
 	let Layer0 = document.createElement('div');//床
@@ -239,44 +263,10 @@ function RenderMap() {
 	screen.appendChild(Layer0);
 	screen.appendChild(Layer1);
 	screen.appendChild(Layer2);
-	//マス目生成(開発時のみ使用予定、テクスチャを変えて使用する可能性アリ)
-	//for (let i = 0; i < 10; i++) {
-	//	for (let j = 0; j < 10; j++) {
-	//		let m = document.createElement('img');
-	//		m.src = '../imgs/Mass.png';
-	//		m.style.position = 'absolute';
-	//		if (Math.random() < 0.1) {
-	//			m.setAttribute('src', '../imgs/Damage.png');
-	//			m.id = "damage" + dmgnum;
-	//			dmgnum++;
-	//		}
-	//		else {
-	//			m.id = "mass" + massCount;
-	//			massCount++;
-	//		}
-	//		m.style.width = SCREEN_HEIGHT / 10 + "px";
-	//		m.style.height = SCREEN_HEIGHT / 10 + "px";
-	//		m.style.top = i * SCREEN_HEIGHT / 10 + "px";
-	//		m.style.left = j * SCREEN_HEIGHT / 10 + "px";
-	//		document.getElementById('screen').appendChild(m);
-	//	}
-	//}
 
-	//障害物生成(デバッグ用)
-	//for (let i = 0; i < 10; i++) {
-	//	let o = document.createElement('img');
-	//	o.src = '../imgs/Obstacle.png'
-	//	o.style.position = 'absolute';
-	//	o.id = "Obs" + i;
-	//	o.style.width = SCREEN_HEIGHT / 11 + "px";
-	//	o.style.height = SCREEN_HEIGHT / 11 + "px";
-	//	o.style.top = SCREEN_HEIGHT / 250 + Math.floor(Math.random() * 10) * SCREEN_HEIGHT / 10 + "px";
-	//	o.style.left = SCREEN_HEIGHT / 250 + Math.floor(Math.random() * 10) * SCREEN_HEIGHT / 10 + "px";
-	//	document.getElementById('screen').appendChild(o);
-	//}
 	for (let i = 0; i < 10; i++) {
 		for (let e = 0; e < 10; e++) {
-			if (STAGE_HANDLE[i][e] != 1) {
+			if (STAGE_HANDLE[i][e] != -1) {
 				let m = document.createElement('img');
 				m.src = '../imgs/Mass.png';
 				m.style.position = 'absolute';
@@ -287,7 +277,7 @@ function RenderMap() {
 				m.style.top = i * SCREEN_HEIGHT / 10 + "px";
 				m.style.left = e * SCREEN_HEIGHT / 10 + "px";
 				m.style.order = "4";
-				document.getElementById('Layer0').appendChild(m);
+				Layer0.appendChild(m);
 			}
 			switch (STAGE_HANDLE[i][e]) {
 				case 1:
@@ -297,11 +287,11 @@ function RenderMap() {
 					d.id = "damage" + dmCount;
 					dmgHandle.push(d);
 					dmCount++;
-					d.style.width = SCREEN_HEIGHT / 10 + "px";
-					d.style.height = SCREEN_HEIGHT / 10 + "px";
-					d.style.top = i * SCREEN_HEIGHT / 10 + "px";
-					d.style.left = e * SCREEN_HEIGHT / 10 + "px";
-					document.getElementById('Layer0').appendChild(d);
+					d.style.width = SCREEN_HEIGHT / 11 + "px";
+					d.style.height = SCREEN_HEIGHT / 11 + "px";
+					d.style.top = SCREEN_HEIGHT / 250 + i * SCREEN_HEIGHT / 10 + "px";
+					d.style.left = SCREEN_HEIGHT / 250 + e * SCREEN_HEIGHT / 10 + "px";
+					Layer0.appendChild(d);
 					break;
 				case 2:
 					let o = document.createElement('img');
@@ -314,115 +304,133 @@ function RenderMap() {
 					o.style.height = SCREEN_HEIGHT / 11 + "px";
 					o.style.top = SCREEN_HEIGHT / 250 + i * SCREEN_HEIGHT / 10 + "px";
 					o.style.left = SCREEN_HEIGHT / 250 + e * SCREEN_HEIGHT / 10 + "px";
-					document.getElementById('Layer2').appendChild(o);
+					Layer2.appendChild(o);
 					break;
 				case 3:
 					let ene = document.createElement('img');
-					ene.src = EneHandle[0];
+					ene.src = enemyIMG[0];
 					ene.style.position = 'absolute';
 					ene.id = "Enemy" + eneCount;
 					enmHandle.push(ene);
 					eneCount++;
-					ene.style.width = SCREEN_HEIGHT / 10 + "px";
-					ene.style.height = SCREEN_HEIGHT / 10 + "px";
-					ene.style.top = i * SCREEN_HEIGHT / 10 + "px";
-					ene.style.left = e * SCREEN_HEIGHT / 10 + "px";
-					document.getElementById('Layer0').appendChild(ene);
+					ene.style.width = SCREEN_HEIGHT / 11 + "px";
+					ene.style.height = SCREEN_HEIGHT / 11 + "px";
+					ene.style.top = SCREEN_HEIGHT / 250 + i * SCREEN_HEIGHT / 10 + "px";
+					ene.style.left = SCREEN_HEIGHT / 250 + e * SCREEN_HEIGHT / 10 + "px";
+					Layer1.appendChild(ene);
+					break;
 			}
 		}
 	}
 }
 
-function Kick_Obstacle() {
-	for (let i = 0; i < obsCount; i++) {
-		let id = "Obs" + i;
-		let Obs = document.getElementById(id);
-		let obsStyle = window.getComputedStyle(Obs);
-		let obsX = Number(obsStyle.getPropertyValue('left').replace("px", ""));
-		let obsY = Number(obsStyle.getPropertyValue('top').replace("px", ""));
+function Kick(array, num) {
+	array.forEach((item) => {
+		let obj = window.getComputedStyle(item);
+		let objX = Number(obj.getPropertyValue('left').replace("px", ""));
+		let objY = Number(obj.getPropertyValue('top').replace("px", ""));
 
-		if (((x > obsX && x - SCREEN_HEIGHT / 75 < obsX + SCREEN_HEIGHT / 17) ||
-			(obsX > x && obsX < x + SCREEN_HEIGHT / 17)) &&
-			((y > obsY && y - SCREEN_HEIGHT / 75 < obsY + SCREEN_HEIGHT / 12.3) ||//上
-				(obsY > y && obsY < y + SCREEN_HEIGHT / 11.8))){//下
-			let judge_dir = SertchAroundObstacle(obsX, obsY, i);
+		if (((x > objX && x - SCREEN_HEIGHT / 75 < objX + SCREEN_HEIGHT / 17) ||
+			(objX > x && objX < x + SCREEN_HEIGHT / 17)) &&
+			((y > objY && y - SCREEN_HEIGHT / 75 < objY + SCREEN_HEIGHT / 12.3) ||//上
+				(objY > y && objY < y + SCREEN_HEIGHT / 11.8))) {//下
+			let OBS_judgeDir = SertchAroundObj(objX, objY, item, obsHandle);
+			let ENM_judgeDir = SertchAroundObj(objX, objY, item, enmHandle);
+			let DMG_judgeDir = SertchAroundObj(objX, objY, item, dmgHandle);
 
 			if (up) {
-				if (judge_dir[0] == 1) {
+				if (OBS_judgeDir[0] == 1 || (DMG_judgeDir[0] == 1 && num == 1)) {
+					frame = 0;
+					y = P_oldY;
+					if (num == 1) Layer1.removeChild(item);
+				}
+				else if (ENM_judgeDir[0] == 1) {
 					frame = 0;
 					y = P_oldY;
 				}
 				else {
-					Obs.style.top = obsY - SCREEN_HEIGHT / 10 + "px";
+					item.style.top = objY - SCREEN_HEIGHT / 10 + "px";
 					up = false;
 					y = P_oldY;
 				}
 			}
 
 			if (down) {
-				if (judge_dir[1] == 1) {
+				if (OBS_judgeDir[1] == 1 || (DMG_judgeDir[1] == 1 && num == 1)) {
+					frame = 0;
+					y = P_oldY;
+					if (num == 1) Layer1.removeChild(item);
+				}
+				else if (ENM_judgeDir[1] == 1) {
 					frame = 0;
 					y = P_oldY;
 				}
 				else {
-					Obs.style.top = obsY + SCREEN_HEIGHT / 10 + "px";
+					item.style.top = objY + SCREEN_HEIGHT / 10 + "px";
 					down = false;
 					y = P_oldY;
 				}
 			}
 
 			if (left) {
-				if (judge_dir[2] == 1) {
+				if (OBS_judgeDir[2] == 1 || (DMG_judgeDir[2] == 1 && num == 1)) {
+					frame = 0;
+					x = P_oldX;
+					if (num == 1) Layer1.removeChild(item);
+				}
+				else if (ENM_judgeDir[2] == 1) {
 					frame = 0;
 					x = P_oldX;
 				}
 				else {
-					Obs.style.left = obsX - SCREEN_HEIGHT / 10 + "px";
+					item.style.left = objX - SCREEN_HEIGHT / 10 + "px";
 					left = false;
 					x = P_oldX;
 				}
 			}
 
 			if (right) {
-				if (judge_dir[3] == 1) {
+				if (OBS_judgeDir[3] == 1 || (DMG_judgeDir[3] == 1 && num == 1)) {
+					frame = 0;
+					x = P_oldX;
+					if(num == 1) Layer1.removeChild(item);
+				}
+				else if (ENM_judgeDir[3] == 1) {
 					frame = 0;
 					x = P_oldX;
 				}
 				else {
-					Obs.style.left = obsX + SCREEN_HEIGHT / 10+ "px";
+					item.style.left = objX + SCREEN_HEIGHT / 10 + "px";
 					right = false;
 					x = P_oldX;
 				}
 			}
 		}
-	}
-
+	});
 }
 
-function SertchAroundObstacle(C_obsX, C_obsY, C_id) {
-	let judge_dir = [0, 0, 0, 0];
-	for (let i = 0; i < obsCount; i++) {
-		let id = "Obs" + i;
-		let Obs = document.getElementById(id);
-		let obsStyle = window.getComputedStyle(Obs);
-		let obsX = Number(obsStyle.getPropertyValue('left').replace("px", ""));
-		let obsY = Number(obsStyle.getPropertyValue('top').replace("px", ""));
 
-		if (Math.floor((C_obsY - SCREEN_HEIGHT / 10)) == Math.floor(obsY) && Math.floor(C_obsX) == Math.floor(obsX)) judge_dir[0] = 1;//障害物の上に障害物がある場合
-		if (Math.floor((C_obsY + SCREEN_HEIGHT / 10)) == Math.floor(obsY) && Math.floor(C_obsX) == Math.floor(obsX)) judge_dir[1] = 1;//障害物の下に障害物がある場合
-		if (Math.floor((C_obsX - SCREEN_HEIGHT / 10)) == Math.floor(obsX) && Math.floor(C_obsY) == Math.floor(obsY)) judge_dir[2] = 1;//障害物の左に障害物がある場合
-		if (Math.floor((C_obsX + SCREEN_HEIGHT / 10)) == Math.floor(obsX) && Math.floor(C_obsY) == Math.floor(obsY)) judge_dir[3] = 1;//障害物の右に障害物がある場合
-	}
+function SertchAroundObj(C_objX, C_objY, C_id, arrayData) {
+	let judge_dir = [0, 0, 0, 0];
+	//let Style =
+	arrayData.forEach((item) => {
+		let Style = window.getComputedStyle(item);
+		let X = Number(Style.getPropertyValue('left').replace("px", ""));
+		let Y = Number(Style.getPropertyValue('top').replace("px", ""));
+
+		if (Math.floor((C_objY - SCREEN_HEIGHT / 10)) == Math.floor(Y) && Math.floor(C_objX) == Math.floor(X)) judge_dir[0] = 1;//障害物の上に障害物がある場合
+		if (Math.floor((C_objY + SCREEN_HEIGHT / 10)) == Math.floor(Y) && Math.floor(C_objX) == Math.floor(X)) judge_dir[1] = 1;//障害物の下に障害物がある場合
+		if (Math.floor((C_objX - SCREEN_HEIGHT / 10)) == Math.floor(X) && Math.floor(C_objY) == Math.floor(Y)) judge_dir[2] = 1;//障害物の左に障害物がある場合
+		if (Math.floor((C_objX + SCREEN_HEIGHT / 10)) == Math.floor(X) && Math.floor(C_objY) == Math.floor(Y)) judge_dir[3] = 1;//障害物の右に障害物がある場合
+	});
 	return judge_dir;
 }
 
 let dmgFlag = false;
 let old_dmgFlag = false;
 function Damage() {
-	for (let i = 0; i < dmCount; i++) {
-		let id = 'damage' + i;
-		let dmg = document.getElementById(id);
-		let dmgStyle = window.getComputedStyle(dmg);
+	for (let i = 0; i < dmgHandle.length; i++) {
+		let dmgStyle = window.getComputedStyle(dmgHandle[i]);
 		let dmgX = Number(dmgStyle.getPropertyValue('left').replace("px", ""));
 		let dmgY = Number(dmgStyle.getPropertyValue('top').replace("px", ""));
 		if (((x > dmgX && x - SCREEN_HEIGHT / 75 < dmgX + SCREEN_HEIGHT / 17) ||
@@ -440,7 +448,7 @@ function Damage() {
 //TALK
 function RenderChar() {
 	let c = document.createElement('img');
-	c.src = CharHandle[0];
+	c.src = charHandle[0].src;
 	c.style.position = 'absolute';
 	c.style.maxWidth = SCREEN_WIDTH / 4 + "px";
 	c.style.maxHeight = SCREEN_HEIGHT / 1.5 + "px";
@@ -448,7 +456,7 @@ function RenderChar() {
 	c.style.height = SCREEN_HEIGHT + "px";
 	c.style.top = (SCREEN_HEIGHT - c.clientHeight) / 10 + "px";
 	c.style.left = (SCREEN_WIDTH - SCREEN_WIDTH / 4) /2 +"px";
-	document.getElementById('screen').appendChild(c);
+	screen.appendChild(c);
 }
 
 function RenderTextBox() {
@@ -462,7 +470,7 @@ function RenderTextBox() {
 	tb.style.left = 0 + "px";
 	tb.style.top = SCREEN_HEIGHT / 1.555 + "px";
 	tb.style.backgroundColor = 'black';
-	document.getElementById('screen').appendChild(tb);
+	screen.appendChild(tb);
 	//名前
 	{
 		let p = document.createElement("p");
@@ -541,17 +549,6 @@ let Serif = [
 ];
 
 
-function preload() {
-	for (let i = 0; i < CharHandle.length; i++) {
-		let img = document.createElement('img');
-		img.src = CharHandle[i];
-	}
-	for (let i = 0; i < BGHandle.length; i++) {
-		let img = document.createElement('img');
-		img.src = CharHandle[i];
-	}
-	console.log("LOAD");
-}
 
 //横10、縦10マスで配置、0が床、1がダメ床、2が障害物、3が敵
 let STAGE_HANDLE = [
