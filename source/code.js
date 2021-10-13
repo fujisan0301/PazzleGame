@@ -64,6 +64,7 @@ function main() {
 
 	}, false);
 
+	Interval(60);
 	requestAnimationFrame(main);
 }
 requestAnimationFrame(main);
@@ -563,3 +564,12 @@ let STAGE_HANDLE = [
 	[1,2,0,0,0,0,0,0,2,1],
 	[1,1,1,1,1,1,1,1,1,1],
 ];
+
+let now = Date.now();
+
+function Interval(FPS) {
+	while (Date.now() - now < 1000 / FPS) {
+
+	}
+	now = Date.now();
+}
