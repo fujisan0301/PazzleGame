@@ -2,6 +2,9 @@ let charIMG = [
 	'../imgs/Char/Player/trim_0.png',
 	'../imgs/Char/Player/trim_1.png',
 	'../imgs/Char/Player/trim_2.png',
+	'../imgs/Char/Player/trim_b0.png',
+	'../imgs/Char/Player/trim_b1.png',
+	'../imgs/Char/Player/trim_b2.png',
 ];
 let enemyIMG = [
 	'../imgs/Char/Enemy/Enemy_0.png',
@@ -9,21 +12,42 @@ let enemyIMG = [
 let bgIMG = [
 	'../imgs/TALK_BG.jpg',
 ];
+let soundFILE = [
+	[//soundFILE[0]はBGMのパス配列
+		'../snds/BGM/Talk_0.mp3',//トークパートで一番最初に流すBGM
+		'../snds/BGM/Talk_1.mp3',//セリフ「神主様！」のところからこれに切り替える
+		'../snds/BGM/Battle_0.mp3',//戦闘BGMその１
+		'../snds/BGM/Battle_1.mp3',//戦闘BGMその２
+		'../snds/BGM/Battle_2.mp3',//ラスボス戦
+	],
+	[//soundFILE[1]はSEのパス配列
+		'../snds/SE/Move.mp3',			//移動した
+		'../snds/SE/Kick.mp3',			//敵を殴った
+		'../snds/SE/MapMove.wav',		//マップを移動
+		'../snds/SE/Dash_OpenDoor.wav',	//走ってきてふすまを開ける
+	]
+];
+
+const FPS = 60;
+
 
 let Page = -1, old_page = 0, LoadFlag = false;
 const TITLE = 0, GAME = 1, TALK = 2;
 let up = false, down = false, right = false, left = false, space = false;
 let x = 0, P_oldX, y = 0, P_oldY, frame = 0, Life = 20;
+let animFrame = 0;
 let chara, charStyle, obsStyle;
-const MOVE_WAIT = 6;//移動キーを押したとき、隣のマスに移動するためにかかるフレーム数 //開発環境が165Hzのせいでズレるねん...60Hzだと2が最適(165:60 = 6:xの式より) 
+const MOVE_WAIT = FPS / 10;//移動キーを押したとき、隣のマスに移動するためにかかるフレーム数 //開発環境が165Hzのせいでズレるねん...60Hzだと2が最適(165:60 = 6:xの式より) 
 let SCREEN_WIDTH, SCREEN_HEIGHT;
 let obsHandle = [], dmgHandle = [], enmHandle = [];
-let charHandle = [], enemyHandle = [], bgHandle = [];
+let charHandle = [], enemyHandle = [], bgHandle = [], sndHandle = [];
+let bgm;
 
 
 let screen = document.createElement('div');
 screen.id = 'screen';
 document.body.appendChild(screen);
+
 
 function preload() {
 	for (let i = 0; i < charIMG.length; i++) {
@@ -36,12 +60,40 @@ function preload() {
 		img.src = bgIMG[i];
 		bgHandle.push(img);
 	}
+	for (let i = 0; i < soundFILE[0].length; i++) {
+		let snd = document.createElement('audio');
+		snd.src = soundFILE[0][i];
+		sndHandle.push(snd);
+	}
+	for (let i = 0; i < soundFILE[1].length; i++) {
+		let snd = document.createElement('audio');
+		snd.src = soundFILE[1][i];
+		sndHandle.push(snd);
+	}
 	console.log("LOAD");
 }
+
+function deload() {
+	for (let i = 0; i < charIMG.length; i++) {
+		charHandle.pop();
+	}
+	for (let i = 0; i < bgIMG.length; i++) {
+		bgHandle.pop();
+	}
+	for (let i = 0; i < soundFILE[0].length; i++) {
+		sndHandle.pop();
+	}
+	for (let i = 0; i < soundFILE[1].length; i++) {
+		sndHandle.pop();
+	}
+	console.log("DELOAD");
+}
+
 
 function main() {
 	if (old_page != Page) {
 		LoadFlag = false;
+		deload();
 		preload();
 		Init();
 	}
@@ -64,7 +116,8 @@ function main() {
 
 	}, false);
 
-	Interval(60);
+	Interval(FPS);
+
 	requestAnimationFrame(main);
 }
 requestAnimationFrame(main);
@@ -81,6 +134,7 @@ function Background(num) {
 }
 
 function PLAY() {
+	console.log(isPlaying(bgm));
 	switch (Page) {
 		case TITLE:	//TITLEを描画するメソッド
 
@@ -89,6 +143,7 @@ function PLAY() {
 		case GAME:	//GAMEを描画するメソッド
 			Kick(obsHandle, 0);
 			Kick(enmHandle, 1);
+			Animation();
 			document.getElementById('LIFE').innerHTML = "LIFE " + Life;
 			//Damage();
 			break;
@@ -123,9 +178,9 @@ function Init() {
 			}
 			RenderMap();
 			let c = document.createElement('img');
-			c.src = charHandle[0].src;
-			c.src = charHandle[1].src;
-			c.src = charHandle[2].src;
+			for (let i = 0; i < charHandle.length; i++) {
+				c.src = charHandle[i].src;
+			}
 			c.id = 'chara';
 			chara = c;
 			c.style.width = SCREEN_HEIGHT / 10 - SCREEN_HEIGHT / 50 + "px";
@@ -143,12 +198,16 @@ function Init() {
 			l.style.fontSize = "100px";
 			l.style.textAlign = "right";
 			l.id = "LIFE";
+			bgm = AudioPlayer(0, 2);
 			break;
 
 		case TALK:	//TALKパートを描画するメソッド
+			bgm = AudioPlayer(0, 0);
 			Background(0);
 			RenderChar();
 			RenderTextBox();
+			count = 0;
+			serif_num = 0;
 			LoadFlag = true;
 			break;
 	}
@@ -166,12 +225,6 @@ function Control() {
 
 		case GAME:
 			if (frame > 0) {
-				if (frame > MOVE_WAIT / 3) {
-					chara.src = charHandle[1].src;
-				}
-				if (MOVE_WAIT / 3 < frame && frame < MOVE_WAIT / 3 * 2) {
-					chara.src = charHandle[2].src;
-				}
 				if (left) x -= SCREEN_HEIGHT / (MOVE_WAIT * 10);
 				if (right) x += SCREEN_HEIGHT / (MOVE_WAIT * 10);
 				if (up) y -= SCREEN_HEIGHT / (MOVE_WAIT * 10);
@@ -191,15 +244,15 @@ function Control() {
 
 		case TALK:
 			if (space) {
-				if (Serif[Num].length != count) {
+				if (Serif[serif_num].length != count) {
 					space = false;
-					count = Serif[Num].length;
+					count = Serif[serif_num].length;
 				}
 				else {
 					document.getElementById('text').innerHTML = "";
-					Num++;
-					if (Num > Serif.length - 1) {
-						Num = 0;
+					serif_num++;
+					if (serif_num > Serif.length - 1) {
+						serif_num = 0;
 					}
 					space = false;
 
@@ -223,10 +276,10 @@ function KeyDown(event) {
 					P_oldX = Number(charStyle.getPropertyValue('left').replace("px", ""));
 					P_oldY = Number(charStyle.getPropertyValue('top').replace("px", ""));
 					switch (keycode) {
-						case 37: left = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; break;
-						case 38: up = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; break;
-						case 39: right = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; break;
-						case 40: down = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; break;
+						case 37: left = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; AudioPlayer(1, 0); break;
+						case 38: up = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; AudioPlayer(1, 0);break;
+						case 39: right = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; AudioPlayer(1, 0); break;
+						case 40: down = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; AudioPlayer(1, 0);break;
 					}
 				}
 			}
@@ -242,7 +295,6 @@ function KeyDown(event) {
 
 function KeyUp() {
 	if (frame < -1) {
-		chara.src = charHandle[0].src;
 		left = false;
 		up = false;
 		right = false;
@@ -344,15 +396,18 @@ function Kick(array, num) {
 					frame = 0;
 					y = P_oldY;
 					if (num == 1) Layer1.removeChild(item);
+					AudioPlayer(1, 1);
 				}
 				else if (ENM_judgeDir[0] == 1) {
 					frame = 0;
 					y = P_oldY;
+					AudioPlayer(1, 1);
 				}
 				else {
 					item.style.top = objY - SCREEN_HEIGHT / 10 + "px";
 					up = false;
 					y = P_oldY;
+					AudioPlayer(1, 1);
 				}
 			}
 
@@ -361,15 +416,18 @@ function Kick(array, num) {
 					frame = 0;
 					y = P_oldY;
 					if (num == 1) Layer1.removeChild(item);
+					AudioPlayer(1, 1);
 				}
 				else if (ENM_judgeDir[1] == 1) {
 					frame = 0;
 					y = P_oldY;
+					AudioPlayer(1, 1);
 				}
 				else {
 					item.style.top = objY + SCREEN_HEIGHT / 10 + "px";
 					down = false;
 					y = P_oldY;
+					AudioPlayer(1, 1);
 				}
 			}
 
@@ -378,15 +436,18 @@ function Kick(array, num) {
 					frame = 0;
 					x = P_oldX;
 					if (num == 1) Layer1.removeChild(item);
+					AudioPlayer(1, 1);
 				}
 				else if (ENM_judgeDir[2] == 1) {
 					frame = 0;
 					x = P_oldX;
+					AudioPlayer(1, 1);
 				}
 				else {
 					item.style.left = objX - SCREEN_HEIGHT / 10 + "px";
 					left = false;
 					x = P_oldX;
+					AudioPlayer(1, 1);
 				}
 			}
 
@@ -395,15 +456,18 @@ function Kick(array, num) {
 					frame = 0;
 					x = P_oldX;
 					if(num == 1) Layer1.removeChild(item);
+					AudioPlayer(1, 1);
 				}
 				else if (ENM_judgeDir[3] == 1) {
 					frame = 0;
 					x = P_oldX;
+					AudioPlayer(1, 1);
 				}
 				else {
 					item.style.left = objX + SCREEN_HEIGHT / 10 + "px";
 					right = false;
 					x = P_oldX;
+					AudioPlayer(1, 1);
 				}
 			}
 		}
@@ -502,13 +566,13 @@ function RenderTextBox() {
 function RenderText() {
 	let text = document.getElementById('text');
 	if (waitcounter > SERIF_SPEED) {
-		let serif = Serif[Num].substring(0, count);
+		let serif = Serif[serif_num].substring(0, count);
 		text.innerHTML = serif;
 		waitcounter = 0;
-		if(Serif[Num].length > count) count++;
+		if(Serif[serif_num].length > count) count++;
 	}
 	waitcounter++;
-	if (Serif[Num].length > 25) {
+	if (Serif[serif_num].length > 25) {
 		text.style.marginLeft = 10 + "em";
 		text.style.marginRight = 10 + "em";
 	}
@@ -519,7 +583,7 @@ function RenderText() {
 }
 
 let count = 0;
-let Num = 0;
+let serif_num = 0;
 let SERIF_SPEED = 2;
 let waitcounter = 0;
 
@@ -572,4 +636,84 @@ function Interval(FPS) {
 
 	}
 	now = Date.now();
+}
+
+let charAniNum = 1;
+let isLookNorth = false;
+function Animation() {
+	animFrame--;
+	if (!up && !left && !right && !down) {
+		if (animFrame < 0) {
+			animFrame = FPS
+			switch (isLookNorth) {
+				case true: chara.src = charHandle[charAniNum + 3].src;
+					break;
+				case false: chara.src = charHandle[charAniNum].src;
+					break;
+			}
+
+			switch (charAniNum) {
+				case 0: charAniNum = 1; break;
+				case 1: charAniNum = 2; break;
+				case 2: charAniNum = 1; break;
+			}
+		}
+	}
+	if (up || left || right || down) {
+		switch (animFrame) {
+			case 0:
+				animFrame = FPS
+				switch (isLookNorth) {
+					case true: chara.src = charHandle[charAniNum + 3].src;
+						break;
+					case false: chara.src = charHandle[charAniNum].src;
+						break;
+				}
+				break;
+			case 30:
+				switch (isLookNorth) {
+					case true: chara.src = charHandle[charAniNum + 3].src;
+						break;
+					case false: chara.src = charHandle[charAniNum].src;
+						break;
+				}
+				break;
+		}
+		charAniNum++;
+		if (charAniNum > 2) {
+			charAniNum = 0;
+		}
+	}
+	if (up) {
+		chara.src = charHandle[3].src;
+		isLookNorth = true;
+	}
+	if (down) {
+		chara.src = charHandle[0].src;
+		isLookNorth = false;
+	}
+}
+
+function AudioPlayer(type, num) {
+	let audio = new Audio();
+	audio.src = soundFILE[type][num];
+	switch (type) {
+		case 0:
+			audio.loop = true;
+			audio.volume = 0.60;
+			audio.id = "BGM";
+			audio.play();
+			screen.appendChild(audio);
+			return audio;
+		case 1:
+			audio.play();
+			break;
+
+	}
+}
+
+function isPlaying(bgm) {
+	let i = new Audio;
+	i = bgm;
+	return !i.paused;
 }
