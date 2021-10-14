@@ -12,6 +12,9 @@ let enemyIMG = [
 let bgIMG = [
 	'../imgs/TALK_BG.jpg',
 ];
+let ItemIMG = [
+	'../imgs/Items/suzu.png',
+]
 let soundFILE = [
 	[//soundFILE[0]はBGMのパス配列
 		'../snds/BGM/Talk_0.mp3',//トークパートで一番最初に流すBGM
@@ -23,6 +26,7 @@ let soundFILE = [
 	[//soundFILE[1]はSEのパス配列
 		'../snds/SE/Move.mp3',			//移動した
 		'../snds/SE/Kick.mp3',			//敵を殴った
+		'../snds/SE/Damage.mp3',		//ダメージ床に乗ったとき
 		'../snds/SE/MapMove.wav',		//マップを移動
 		'../snds/SE/Dash_OpenDoor.wav',	//走ってきてふすまを開ける
 	]
@@ -40,9 +44,10 @@ let chara, charStyle, obsStyle;
 const MOVE_WAIT = FPS / 10;//移動キーを押したとき、隣のマスに移動するためにかかるフレーム数 //開発環境が165Hzのせいでズレるねん...60Hzだと2が最適(165:60 = 6:xの式より) 
 let SCREEN_WIDTH, SCREEN_HEIGHT;
 let obsHandle = [], dmgHandle = [], enmHandle = [];
-let charHandle = [], enemyHandle = [], bgHandle = [], sndHandle = [];
+let charHandle = [], enemyHandle = [], bgHandle = [], itemHandle = [];
 let bgm;
-
+let spriteBox, nameBox, textBox;
+let serifSkipTimer = 0;
 
 let screen = document.createElement('div');
 screen.id = 'screen';
@@ -60,15 +65,10 @@ function preload() {
 		img.src = bgIMG[i];
 		bgHandle.push(img);
 	}
-	for (let i = 0; i < soundFILE[0].length; i++) {
-		let snd = document.createElement('audio');
-		snd.src = soundFILE[0][i];
-		sndHandle.push(snd);
-	}
-	for (let i = 0; i < soundFILE[1].length; i++) {
-		let snd = document.createElement('audio');
-		snd.src = soundFILE[1][i];
-		sndHandle.push(snd);
+	for (let i = 0; i < ItemIMG.length; i++) {
+		let img = document.createElement('img');
+		img.src = ItemIMG[i];
+		itemHandle.push(img);
 	}
 	console.log("LOAD");
 }
@@ -80,12 +80,6 @@ function deload() {
 	for (let i = 0; i < bgIMG.length; i++) {
 		bgHandle.pop();
 	}
-	for (let i = 0; i < soundFILE[0].length; i++) {
-		sndHandle.pop();
-	}
-	for (let i = 0; i < soundFILE[1].length; i++) {
-		sndHandle.pop();
-	}
 	console.log("DELOAD");
 }
 
@@ -93,10 +87,13 @@ function deload() {
 function main() {
 	if (old_page != Page) {
 		LoadFlag = false;
+		console.log("ok");
 		deload();
 		preload();
 		Init();
 	}
+	if (LoadFlag && document.getElementById('black') != null) document.body.removeChild(document.body.lastChild);
+
 	old_page = Page;
 
 	if (Page == -1) {
@@ -106,6 +103,7 @@ function main() {
 	if (LoadFlag) {
 		PLAY();
 		Control();
+		Animation();
 	}
 
 	addEventListener("keydown", function () {
@@ -143,13 +141,13 @@ function PLAY() {
 		case GAME:	//GAMEを描画するメソッド
 			Kick(obsHandle, 0);
 			Kick(enmHandle, 1);
-			Animation();
 			document.getElementById('LIFE').innerHTML = "LIFE " + Life;
 			//Damage();
 			break;
 
 		case TALK:	//TALKパートを描画するメソッド
 			RenderText();
+			serifSkipTimer++;
 			break;
 	}
 }
@@ -189,7 +187,6 @@ function Init() {
 			y = 61 * (SCREEN_HEIGHT / 100);
 			c.style.position = 'absolute';
 			screen.appendChild(c);
-			LoadFlag = true;
 			//LIFE
 			let l = document.createElement('p');
 			let lt = document.createTextNode('LIFE');
@@ -199,13 +196,14 @@ function Init() {
 			l.style.textAlign = "right";
 			l.id = "LIFE";
 			bgm = AudioPlayer(0, 2);
+			LoadFlag = true;
 			break;
 
 		case TALK:	//TALKパートを描画するメソッド
 			bgm = AudioPlayer(0, 0);
 			Background(0);
-			RenderChar();
-			RenderTextBox();
+			spriteBox = CreateSpriteBox();
+			CreateTextBox();
 			count = 0;
 			serif_num = 0;
 			LoadFlag = true;
@@ -232,7 +230,10 @@ function Control() {
 			}
 			else {
 				if (Damage()) {
-					if (dmgFlag) if (!old_dmgFlag) Life--;
+					if (dmgFlag) if (!old_dmgFlag) {
+						Life--;
+						AudioPlayer(1, 2);
+					}
 				}
 				old_dmgFlag = dmgFlag;
 			}
@@ -249,14 +250,16 @@ function Control() {
 					count = Serif[serif_num].length;
 				}
 				else {
-					document.getElementById('text').innerHTML = "";
-					serif_num++;
-					if (serif_num > Serif.length - 1) {
-						serif_num = 0;
+					if (serifSkipTimer > 10) {
+						document.getElementById('text').innerHTML = "";
+						serif_num++;
+						if (serif_num > Serif.length - 1) {
+							serif_num = 0;
+						}
+						space = false;
+						serifSkipTimer = 0;
+						count = 0;
 					}
-					space = false;
-
-					count = 0;
 				}
 			}
 			break;
@@ -477,7 +480,6 @@ function Kick(array, num) {
 
 function SertchAroundObj(C_objX, C_objY, C_id, arrayData) {
 	let judge_dir = [0, 0, 0, 0];
-	//let Style =
 	arrayData.forEach((item) => {
 		let Style = window.getComputedStyle(item);
 		let X = Number(Style.getPropertyValue('left').replace("px", ""));
@@ -511,20 +513,26 @@ function Damage() {
 }
 
 //TALK
-function RenderChar() {
-	let c = document.createElement('img');
-	c.src = charHandle[0].src;
-	c.style.position = 'absolute';
-	c.style.maxWidth = SCREEN_WIDTH / 4 + "px";
-	c.style.maxHeight = SCREEN_HEIGHT / 1.5 + "px";
+function CreateSpriteBox() {
+	let c = document.createElement('div');
+	c.style.opacity = '0';
+	c.style.background = 'none';
+	c.style.backgroundSize = 'cover';
+	c.style.backgroundPositionX = '50%';
+	c.style.position = 'relative';
+	c.style.maxWidth = SCREEN_HEIGHT / 3 + "px";
+	c.style.maxHeight = SCREEN_HEIGHT / 3 + "px";
 	c.style.width = SCREEN_WIDTH + "px";
 	c.style.height = SCREEN_HEIGHT + "px";
-	c.style.top = (SCREEN_HEIGHT - c.clientHeight) / 10 + "px";
-	c.style.left = (SCREEN_WIDTH - SCREEN_WIDTH / 4) /2 +"px";
+	c.style.top = SCREEN_HEIGHT / 6 + "px";
+	c.style.margin = 'auto';
+	c.style.border = SCREEN_HEIGHT / 100 + "px solid white";
+	c.style.borderRadius = "25px 25px 25px 25px / 25px 25px 25px 25px";
 	screen.appendChild(c);
+	return c;
 }
 
-function RenderTextBox() {
+function CreateTextBox() {
 	//テキスト背景
 	let tb = document.createElement('div');
 	tb.id = 'textbox';
@@ -539,7 +547,7 @@ function RenderTextBox() {
 	//名前
 	{
 		let p = document.createElement("p");
-		let name = document.createTextNode("主人公");
+		let name = document.createTextNode("　");
 		p.appendChild(name);
 		p.id = 'name';
 		p.style.textAlign = "center";
@@ -551,7 +559,7 @@ function RenderTextBox() {
 	//セリフ
 	{
 		let div = document.createElement("div");
-		let t = document.createTextNode("TEST_TEXT");
+		let t = document.createTextNode("");
 		div.appendChild(t);
 		div.id = 'text';
 		div.style.textAlign = "center";
@@ -564,21 +572,42 @@ function RenderTextBox() {
 }
 
 function RenderText() {
-	let text = document.getElementById('text');
+	nameBox = document.getElementById('name');
+	textBox = document.getElementById('text');
+	switch (serif_num) {
+		case 4: nameBox.innerHTML = '神主';
+			break;
+		case 6: nameBox.innerHTML = '　';
+			break;
+		case 12: nameBox.innerHTML = '神主';
+			break;
+		case 13: nameBox.innerHTML = '村人';
+			break;
+		case 14: nameBox.innerHTML = '　';
+			break;
+		case 15: nameBox.innerHTML = '村人';
+			break;
+		case 16: nameBox.innerHTML = '神主';
+			break;
+		case 17: nameBox.innerHTML = '村人';
+			break;
+		case 18: nameBox.innerHTML = '　';
+			break;
+}
 	if (waitcounter > SERIF_SPEED) {
 		let serif = Serif[serif_num].substring(0, count);
-		text.innerHTML = serif;
+		textBox.innerHTML = serif;
 		waitcounter = 0;
 		if(Serif[serif_num].length > count) count++;
 	}
 	waitcounter++;
 	if (Serif[serif_num].length > 25) {
-		text.style.marginLeft = 10 + "em";
-		text.style.marginRight = 10 + "em";
+		textBox.style.marginLeft = 10 + "em";
+		textBox.style.marginRight = 10 + "em";
 	}
 	else {
-		text.style.marginLeft = 20 + "em";
-		text.style.marginRight = 20 + "em";
+		textBox.style.marginLeft = 20 + "em";
+		textBox.style.marginRight = 20 + "em";
 	}
 }
 
@@ -597,7 +626,7 @@ let Serif = [
 	'いまはその神楽の準備をしているところなんだけど...',
 	'「ない！ない！！」',
 	'「神楽で使う予定だった鉾鈴がない！！」',
-	'鉾鈴（画像出す）',
+	'鉾鈴',
 	'別名鈴なりともいう。',
 	'鈴には「邪なるものを祓う力」があると考えられ、',
 	'澄んだ音で神の御礼を引き付け大きな御神徳を得ようとするものと言われている。',
@@ -641,56 +670,88 @@ function Interval(FPS) {
 let charAniNum = 1;
 let isLookNorth = false;
 function Animation() {
-	animFrame--;
-	if (!up && !left && !right && !down) {
-		if (animFrame < 0) {
-			animFrame = FPS
-			switch (isLookNorth) {
-				case true: chara.src = charHandle[charAniNum + 3].src;
-					break;
-				case false: chara.src = charHandle[charAniNum].src;
-					break;
-			}
+	switch (Page) {
+		case TITLE:
+			break;
 
-			switch (charAniNum) {
-				case 0: charAniNum = 1; break;
-				case 1: charAniNum = 2; break;
-				case 2: charAniNum = 1; break;
+		case GAME:
+			animFrame--;
+			if (!up && !left && !right && !down) {
+				if (animFrame < 0) {
+					animFrame = FPS
+					switch (isLookNorth) {
+						case true: chara.src = charHandle[charAniNum + 3].src;
+							break;
+						case false: chara.src = charHandle[charAniNum].src;
+							break;
+					}
+
+					switch (charAniNum) {
+						case 0: charAniNum = 1; break;
+						case 1: charAniNum = 2; break;
+						case 2: charAniNum = 1; break;
+					}
+				}
 			}
-		}
-	}
-	if (up || left || right || down) {
-		switch (animFrame) {
-			case 0:
-				animFrame = FPS
-				switch (isLookNorth) {
-					case true: chara.src = charHandle[charAniNum + 3].src;
+			if (up || left || right || down) {
+				switch (animFrame) {
+					case 0:
+						animFrame = FPS
+						switch (isLookNorth) {
+							case true: chara.src = charHandle[charAniNum + 3].src;
+								break;
+							case false: chara.src = charHandle[charAniNum].src;
+								break;
+						}
 						break;
-					case false: chara.src = charHandle[charAniNum].src;
+					case 30:
+						switch (isLookNorth) {
+							case true: chara.src = charHandle[charAniNum + 3].src;
+								break;
+							case false: chara.src = charHandle[charAniNum].src;
+								break;
+						}
 						break;
 				}
-				break;
-			case 30:
-				switch (isLookNorth) {
-					case true: chara.src = charHandle[charAniNum + 3].src;
-						break;
-					case false: chara.src = charHandle[charAniNum].src;
-						break;
+				charAniNum++;
+				if (charAniNum > 2) {
+					charAniNum = 0;
 				}
-				break;
-		}
-		charAniNum++;
-		if (charAniNum > 2) {
-			charAniNum = 0;
-		}
-	}
-	if (up) {
-		chara.src = charHandle[3].src;
-		isLookNorth = true;
-	}
-	if (down) {
-		chara.src = charHandle[0].src;
-		isLookNorth = false;
+			}
+			if (up) {
+				chara.src = charHandle[3].src;
+				isLookNorth = true;
+			}
+			if (down) {
+				chara.src = charHandle[0].src;
+				isLookNorth = false;
+			}
+			break;
+
+		case TALK:
+			//イベント内容を書き込む
+			switch (serif_num) {
+				case 6:
+					spriteBox.style.background = 'url(' + itemHandle[0].src + ')';
+					spriteBox.style.backgroundColor = 'black';
+					spriteBox.style.backgroundSize = '40%';
+					spriteBox.style.backgroundRepeat = 'no-repeat';
+					spriteBox.style.backgroundPositionX = '50%';
+					spriteBox.style.backgroundPositionY = '45%';
+					spriteBox.style.opacity = animFrame;
+					animFrame += 0.1;
+					break;
+				case 7:
+					spriteBox.style.opacity = '1';
+					break;
+				case 12:
+					spriteBox.style.opacity = '0';
+					break;
+				case 19:
+					Page = 1;
+					break;
+			}
+			break;
 	}
 }
 
