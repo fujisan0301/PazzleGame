@@ -92,7 +92,6 @@ function main() {
 		preload();
 		Init();
 	}
-	if (LoadFlag && document.getElementById('black') != null) document.body.removeChild(document.body.lastChild);
 
 	old_page = Page;
 
@@ -165,34 +164,13 @@ function Init() {
 			break;
 
 		case GAME:	//GAMEを描画するメソッド
-			while (obsHandle[0] != null) {
-				obsHandle.pop();
-			}
-			while (dmgHandle[0] != null) {
-				dmgHandle.pop();
-			}
-			while (enmHandle[0] != null) {
-				enmHandle.pop();
-			}
 			RenderMap();
-			let c = document.createElement('img');
-			for (let i = 0; i < charHandle.length; i++) {
-				c.src = charHandle[i].src;
-			}
-			c.id = 'chara';
-			chara = c;
-			c.style.width = SCREEN_HEIGHT / 10 - SCREEN_HEIGHT / 50 + "px";
-			c.style.height = SCREEN_HEIGHT / 10 - SCREEN_HEIGHT / 50 + "px";
-			x = 51 * (SCREEN_HEIGHT / 100);
-			y = 61 * (SCREEN_HEIGHT / 100);
-			c.style.position = 'absolute';
-			screen.appendChild(c);
 			//LIFE
-			let l = document.createElement('p');
+			let l = document.createElement('div');
 			let lt = document.createTextNode('LIFE');
 			l.appendChild(lt);
 			screen.appendChild(l);
-			l.style.fontSize = "100px";
+			l.style.fontSize = SCREEN_HEIGHT / 10 + "px";
 			l.style.textAlign = "right";
 			l.id = "LIFE";
 			bgm = AudioPlayer(0, 2);
@@ -231,7 +209,7 @@ function Control() {
 			else {
 				if (Damage()) {
 					if (dmgFlag) if (!old_dmgFlag) {
-						Life--;
+						if(Life > 0) Life--;
 						AudioPlayer(1, 2);
 					}
 				}
@@ -274,7 +252,7 @@ function KeyDown(event) {
 
 		case GAME:
 			if (frame < 0) {
-				if (!up && !down && !left && !right) {
+				if (!up && !down && !left && !right && Life > 0) {
 					charStyle = window.getComputedStyle(chara);
 					P_oldX = Number(charStyle.getPropertyValue('left').replace("px", ""));
 					P_oldY = Number(charStyle.getPropertyValue('top').replace("px", ""));
@@ -282,8 +260,11 @@ function KeyDown(event) {
 						case 37: left = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; AudioPlayer(1, 0); break;
 						case 38: up = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; AudioPlayer(1, 0);break;
 						case 39: right = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; AudioPlayer(1, 0); break;
-						case 40: down = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; AudioPlayer(1, 0);break;
+						case 40: down = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; AudioPlayer(1, 0); break;
 					}
+				}
+				switch (keycode) {
+					case 82: Life = 20; RenderMap(); break;
 				}
 			}
 			break;
@@ -306,19 +287,29 @@ function KeyUp() {
 }
 
 function RenderMap() {
-	//let height = document.documentElement.clientHeight;
-	let dmCount = 0, obsCount = 0, eneCount = 0;
-	let massCount = 0;
-	dmCount = 0;
+	while (obsHandle[0] != null) {
+		obsHandle.pop();
+	}
+	while (dmgHandle[0] != null) {
+		dmgHandle.pop();
+	}
+	while (enmHandle[0] != null) {
+		enmHandle.pop();
+	}
+	for (let i = 0; i < 4; i++) {
+		if (document.getElementById('Layer' + i) != null) {
+			document.getElementById('Layer' + i).remove();
+		}
+	}
+	let dmCount = 0, obsCount = 0, eneCount = 0, massCount = 0;
 	let Layer0 = document.createElement('div');//床
 	Layer0.id = "Layer0";
 	let Layer1 = document.createElement('div');//敵
 	Layer1.id = "Layer1";
 	let Layer2 = document.createElement('div');//障害物
 	Layer2.id = "Layer2";
-	screen.appendChild(Layer0);
-	screen.appendChild(Layer1);
-	screen.appendChild(Layer2);
+	let Layer3 = document.createElement('div');//プレイヤー
+	Layer3.id = "Layer3";
 
 	for (let i = 0; i < 10; i++) {
 		for (let e = 0; e < 10; e++) {
@@ -351,7 +342,7 @@ function RenderMap() {
 					break;
 				case 2:
 					let o = document.createElement('img');
-					o.src = '../imgs/Obstacle.png';
+					o.src = '../imgs/obj/stone_1trim.png';
 					o.style.position = 'absolute';
 					o.id = "Obs" + obsCount;
 					obsHandle.push(o);
@@ -375,9 +366,25 @@ function RenderMap() {
 					ene.style.left = SCREEN_HEIGHT / 250 + e * SCREEN_HEIGHT / 10 + "px";
 					Layer1.appendChild(ene);
 					break;
+				case 4:
+					let c = document.createElement('img');
+					c.src = charHandle[0].src;
+					c.id = 'chara';
+					chara = c;
+					c.style.width = SCREEN_HEIGHT / 10 - SCREEN_HEIGHT / 50 + "px";
+					c.style.height = SCREEN_HEIGHT / 10 - SCREEN_HEIGHT / 50 + "px";
+					x = ( 1 + e * 10 ) * (SCREEN_HEIGHT / 100);
+					y = ( 1 + i * 10 ) * (SCREEN_HEIGHT / 100);
+					c.style.position = 'absolute';
+					Layer3.appendChild(c);
+					break;
 			}
 		}
 	}
+	screen.appendChild(Layer0);
+	screen.appendChild(Layer1);
+	screen.appendChild(Layer2);
+	screen.appendChild(Layer3);
 }
 
 function Kick(array, num) {
@@ -654,7 +661,7 @@ let STAGE_HANDLE = [
 	[1,0,0,0,1,1,3,0,0,1],
 	[1,0,0,2,3,0,2,0,0,1],
 	[1,0,2,0,0,0,0,2,0,1],
-	[1,2,0,0,0,0,0,0,2,1],
+	[1,2,0,0,0,4,0,0,2,1],
 	[1,1,1,1,1,1,1,1,1,1],
 ];
 
@@ -669,6 +676,7 @@ function Interval(FPS) {
 
 let charAniNum = 1;
 let isLookNorth = false;
+let Flag = false;
 function Animation() {
 	switch (Page) {
 		case TITLE:
@@ -746,8 +754,14 @@ function Animation() {
 					break;
 				case 12:
 					spriteBox.style.opacity = '0';
+					if (!Flag) {
+						bgm.pause();
+						bgm = AudioPlayer(0, 1);
+						Flag = true;
+					}
 					break;
 				case 19:
+					bgm.pause();
 					Page = 1;
 					break;
 			}
@@ -764,7 +778,7 @@ function AudioPlayer(type, num) {
 			audio.volume = 0.60;
 			audio.id = "BGM";
 			audio.play();
-			screen.appendChild(audio);
+			if(document.getElementById('BGM') == null) screen.appendChild(audio);
 			return audio;
 		case 1:
 			audio.play();
