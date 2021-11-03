@@ -35,19 +35,20 @@ let soundFILE = [
 const FPS = 60;
 
 
-let Page = -1, old_page = 0, LoadFlag = false;
+let page = -1, old_page = 0, LoadFlag = false;
 const TITLE = 0, GAME = 1, TALK = 2;
 let up = false, down = false, right = false, left = false, space = false;
-let x = 0, P_oldX, y = 0, P_oldY, frame = 0, Life = 20;
+let x = 0, P_oldX, colX = 0, y = 0, P_oldY, colY = 0, frame = 0, Life = 20, dmgFlag = false, keyGet = false;
 let animFrame = 0;
-let chara, charStyle, obsStyle;
-const MOVE_WAIT = FPS / 10;//移動キーを押したとき、隣のマスに移動するためにかかるフレーム数 //開発環境が165Hzのせいでズレるねん...60Hzだと2が最適(165:60 = 6:xの式より) 
+let chara, charaCol, charStyle, obsStyle;
+const MOVE_WAIT = FPS / 10;
 let SCREEN_WIDTH, SCREEN_HEIGHT;
-let obsHandle = [], dmgHandle = [], enmHandle = [];
+let obsHandle = [], dmgHandle = [], enmHandle = [], goalPoint = [], wallHandle = [], keyPoint = [], keyDoorPoint = [];
 let charHandle = [], enemyHandle = [], bgHandle = [], itemHandle = [];
 let bgm;
 let spriteBox, nameBox, textBox;
 let serifSkipTimer = 0;
+let STAGE_HANDLE = [], stage_num = 4;
 
 let screen = document.createElement('div');
 screen.id = 'screen';
@@ -85,7 +86,7 @@ function deload() {
 
 
 function main() {
-	if (old_page != Page) {
+	if (old_page != page) {
 		LoadFlag = false;
 		console.log("ok");
 		deload();
@@ -93,22 +94,22 @@ function main() {
 		Init();
 	}
 
-	old_page = Page;
+	old_page = page;
 
-	if (Page == -1) {
-		Page = 0;
+	if (page == -1) {
+		page = 0;
 	}
 
 	if (LoadFlag) {
 		PLAY();
-		Control();
 		Animation();
+		Control();
 	}
 
 	addEventListener("keydown", function () {
 		switch (event.keyCode) {
-			case 49: Page = 1; break;
-			case 50: Page = 2; break;
+			case 49: page = 1; break;
+			case 50: page = 2; break;
 		}
 
 	}, false);
@@ -132,7 +133,7 @@ function Background(num) {
 
 function PLAY() {
 	console.log(isPlaying(bgm));
-	switch (Page) {
+	switch (page) {
 		case TITLE:	//TITLEを描画するメソッド
 
 			break;
@@ -140,6 +141,24 @@ function PLAY() {
 		case GAME:	//GAMEを描画するメソッド
 			Kick(obsHandle, 0);
 			Kick(enmHandle, 1);
+			Kick(wallHandle, 0);
+			if (DetectNowPoint(goalPoint)) console.log("goal");
+			if (DetectNowPoint(keyPoint))
+			{
+				Layer0.removeChild(document.getElementById('Key'));
+				keyGet = true;
+			}
+			if (DetectNowPoint(keyDoorPoint)) {
+				if (!keyGet) {
+					x = P_oldX;
+					y = P_oldY;
+					frame = 0;
+				}
+				else {
+					Layer2.removeChild(document.getElementById('KeyDoor'))
+				}
+			}
+
 			document.getElementById('LIFE').innerHTML = "LIFE " + Life;
 			//Damage();
 			break;
@@ -158,12 +177,13 @@ function Init() {
 	while (screen.lastChild) {
 		screen.removeChild(screen.lastChild);
 	}
-	switch (Page) {
+	switch (page) {
 		case TITLE:	//TITLEを描画するメソッド
 
 			break;
 
 		case GAME:	//GAMEを描画するメソッド
+			STAGE_HANDLE = GetStage();
 			RenderMap();
 			//LIFE
 			let l = document.createElement('div');
@@ -195,7 +215,7 @@ function Control() {
 	addEventListener("keydown", KeyDown, false);
 	KeyUp();
 
-	switch (Page) {
+	switch (page) {
 		case TITLE:
 			break;
 
@@ -207,18 +227,22 @@ function Control() {
 				if (down) y += SCREEN_HEIGHT / (MOVE_WAIT * 10);
 			}
 			else {
-				if (Damage()) {
-					if (dmgFlag) if (!old_dmgFlag) {
-						if(Life > 0) Life--;
+				if (DetectNowPoint(dmgHandle)) {
+					if (!dmgFlag) {
+						dmgFlag = true;
+						if (Life > 0) Life--;
 						AudioPlayer(1, 2);
 					}
 				}
-				old_dmgFlag = dmgFlag;
+				else dmgFlag = false;
+
 			}
-			if(frame > -2) frame--;
+			if (frame > -2) frame--;
 
 			chara.style.left = x + 'px';
 			chara.style.top = y + 'px';
+			charaCol.style.left = x - SCREEN_HEIGHT / 166.7 + 'px';
+			charaCol.style.top = y - SCREEN_HEIGHT / 166.7 + 'px';
 			break;
 
 		case TALK:
@@ -246,7 +270,7 @@ function Control() {
 
 function KeyDown(event) {
 	let keycode = event.keyCode;
-	switch (Page) {
+	switch (page) {
 		case TITLE:
 			break;
 
@@ -257,10 +281,10 @@ function KeyDown(event) {
 					P_oldX = Number(charStyle.getPropertyValue('left').replace("px", ""));
 					P_oldY = Number(charStyle.getPropertyValue('top').replace("px", ""));
 					switch (keycode) {
-						case 37: left = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; AudioPlayer(1, 0); break;
-						case 38: up = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; AudioPlayer(1, 0);break;
-						case 39: right = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; AudioPlayer(1, 0); break;
-						case 40: down = true; frame = MOVE_WAIT; Life--; old_dmgFlag = false; AudioPlayer(1, 0); break;
+						case 37: if (SCREEN_HEIGHT / 10 < x) { left = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
+						case 38: if (SCREEN_HEIGHT / 10 < y) { up = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
+						case 39: if (x < SCREEN_HEIGHT / 10 * (STAGE_HANDLE[0].length - 1)) { right = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
+						case 40: if (y < SCREEN_HEIGHT / 10 * (STAGE_HANDLE.length - 1)) { down = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
 					}
 				}
 				switch (keycode) {
@@ -302,17 +326,15 @@ function RenderMap() {
 		}
 	}
 	let dmCount = 0, obsCount = 0, eneCount = 0, massCount = 0;
-	let Layer0 = document.createElement('div');//床
+	let Layer0 = document.createElement('div');//床レイヤー(通常マス、ダメージ、ゴール、鍵)
 	Layer0.id = "Layer0";
-	let Layer1 = document.createElement('div');//敵
+	let Layer1 = document.createElement('div');//オブジェクトレイヤー(敵、障害物、プレイヤー)
 	Layer1.id = "Layer1";
-	let Layer2 = document.createElement('div');//障害物
+	let Layer2 = document.createElement('div');//シンボルレイヤー(壁、鍵扉)
 	Layer2.id = "Layer2";
-	let Layer3 = document.createElement('div');//プレイヤー
-	Layer3.id = "Layer3";
 
-	for (let i = 0; i < 10; i++) {
-		for (let e = 0; e < 10; e++) {
+	for (let i = 0; i < STAGE_HANDLE.length; i++) {
+		for (let e = 0; e < STAGE_HANDLE[i].length; e++) {
 			if (STAGE_HANDLE[i][e] != -1) {
 				let m = document.createElement('img');
 				m.src = '../imgs/Mass.png';
@@ -327,7 +349,7 @@ function RenderMap() {
 				Layer0.appendChild(m);
 			}
 			switch (STAGE_HANDLE[i][e]) {
-				case 1:
+				case 1://ダメージ床
 					let d = document.createElement('img');
 					d.style.position = 'absolute';
 					d.src = '../imgs/Damage.png';
@@ -340,7 +362,7 @@ function RenderMap() {
 					d.style.left = SCREEN_HEIGHT / 250 + e * SCREEN_HEIGHT / 10 + "px";
 					Layer0.appendChild(d);
 					break;
-				case 2:
+				case 2://障害物
 					let o = document.createElement('img');
 					o.src = '../imgs/obj/stone_1trim.png';
 					o.style.position = 'absolute';
@@ -351,9 +373,9 @@ function RenderMap() {
 					o.style.height = SCREEN_HEIGHT / 11 + "px";
 					o.style.top = SCREEN_HEIGHT / 250 + i * SCREEN_HEIGHT / 10 + "px";
 					o.style.left = SCREEN_HEIGHT / 250 + e * SCREEN_HEIGHT / 10 + "px";
-					Layer2.appendChild(o);
+					Layer1.appendChild(o);
 					break;
-				case 3:
+				case 3://敵
 					let ene = document.createElement('img');
 					ene.src = enemyIMG[0];
 					ene.style.position = 'absolute';
@@ -366,17 +388,92 @@ function RenderMap() {
 					ene.style.left = SCREEN_HEIGHT / 250 + e * SCREEN_HEIGHT / 10 + "px";
 					Layer1.appendChild(ene);
 					break;
-				case 4:
-					let c = document.createElement('img');
-					c.src = charHandle[0].src;
-					c.id = 'chara';
-					chara = c;
-					c.style.width = SCREEN_HEIGHT / 10 - SCREEN_HEIGHT / 50 + "px";
-					c.style.height = SCREEN_HEIGHT / 10 - SCREEN_HEIGHT / 50 + "px";
-					x = ( 1 + e * 10 ) * (SCREEN_HEIGHT / 100);
-					y = ( 1 + i * 10 ) * (SCREEN_HEIGHT / 100);
-					c.style.position = 'absolute';
-					Layer3.appendChild(c);
+				case 4://鍵
+					let Key = document.createElement('img');
+					Key.src = '../imgs/Key.png';
+					Key.style.position = 'absolute';
+					Key.id = "Key";
+					keyPoint.push(Key);
+					Key.style.width = SCREEN_HEIGHT / 11 + "px";
+					Key.style.height = SCREEN_HEIGHT / 11 + "px";
+					Key.style.top = SCREEN_HEIGHT / 250 + i * SCREEN_HEIGHT / 10 + "px";
+					Key.style.left = SCREEN_HEIGHT / 250 + e * SCREEN_HEIGHT / 10 + "px";
+					Layer0.appendChild(Key);
+					break;
+				case 5://鍵扉
+					let kDoor = document.createElement('img');
+					kDoor.src = '../imgs/KeyDoor.png';
+					kDoor.style.position = 'absolute';
+					kDoor.id = "KeyDoor";
+					keyDoorPoint.push(kDoor);
+					kDoor.style.width = SCREEN_HEIGHT / 11 + "px";
+					kDoor.style.height = SCREEN_HEIGHT / 11 + "px";
+					kDoor.style.top = SCREEN_HEIGHT / 250 + i * SCREEN_HEIGHT / 10 + "px";
+					kDoor.style.left = SCREEN_HEIGHT / 250 + e * SCREEN_HEIGHT / 10 + "px";
+					Layer2.appendChild(kDoor);
+					break;
+				case 6://ゴール
+					let goal = document.createElement('img');
+					goal.src = '../imgs/Goal.png';
+					goal.style.position = 'absolute';
+					goal.id = "Goal";
+					goalPoint.push(goal);
+					goal.style.width = SCREEN_HEIGHT / 11 + "px";
+					goal.style.height = SCREEN_HEIGHT / 11 + "px";
+					goal.style.top = SCREEN_HEIGHT / 250 + i * SCREEN_HEIGHT / 10 + "px";
+					goal.style.left = SCREEN_HEIGHT / 250 + e * SCREEN_HEIGHT / 10 + "px";
+					Layer0.appendChild(goal);
+					break;
+				case 7://プレイヤー
+					{//判定用
+						let c = document.createElement('img');
+						c.src = '../imgs/collider.png';
+						c.id = 'charaCol';
+						charaCol = c;
+						c.style.width = SCREEN_HEIGHT / 11 + "px";
+						c.style.height = SCREEN_HEIGHT / 11 + "px";
+						colX = SCREEN_HEIGHT / 250 + i * SCREEN_HEIGHT / 10 + "px";
+						colY = SCREEN_HEIGHT / 250 + e * SCREEN_HEIGHT / 10 + "px";
+						c.style.position = 'absolute';
+						Layer1.appendChild(c);
+					}
+					{//表示用
+						let c = document.createElement('img');
+						c.src = charHandle[0].src;
+						c.id = 'chara';
+						chara = c;
+						c.style.width = SCREEN_HEIGHT / 10 - SCREEN_HEIGHT / 50 + "px";
+						c.style.height = SCREEN_HEIGHT / 10 - SCREEN_HEIGHT / 50 + "px";
+						x = (1 + e * 10) * (SCREEN_HEIGHT / 100);
+						y = (1 + i * 10) * (SCREEN_HEIGHT / 100);
+						c.style.position = 'absolute';
+						Layer1.appendChild(c);
+					}
+					break;
+				case 8://壁
+					{//判定用
+						let w = document.createElement('img');
+						w.src = '../imgs/collider.png';
+						w.style.position = 'absolute';
+						w.id = "Wall";
+						wallHandle.push(w);
+						w.style.width = SCREEN_HEIGHT / 11 + "px";
+						w.style.height = SCREEN_HEIGHT / 11 + "px";
+						w.style.top = SCREEN_HEIGHT / 250 + i * SCREEN_HEIGHT / 10 + "px";
+						w.style.left = SCREEN_HEIGHT / 250 + e * SCREEN_HEIGHT / 10 + "px";
+						Layer2.appendChild(w);
+					}
+					{//表示用
+						let w = document.createElement('img');
+						w.src = '../imgs/Wall.png';
+						w.style.position = 'absolute';
+						w.id = "Wall";
+						w.style.width = SCREEN_HEIGHT / 10 + "px";
+						w.style.height = SCREEN_HEIGHT / 10 + "px";
+						w.style.top = i * SCREEN_HEIGHT / 10 + "px";
+						w.style.left = e * SCREEN_HEIGHT / 10 + "px";
+						Layer2.appendChild(w);
+					}
 					break;
 			}
 		}
@@ -384,7 +481,6 @@ function RenderMap() {
 	screen.appendChild(Layer0);
 	screen.appendChild(Layer1);
 	screen.appendChild(Layer2);
-	screen.appendChild(Layer3);
 }
 
 function Kick(array, num) {
@@ -397,18 +493,22 @@ function Kick(array, num) {
 			(objX > x && objX < x + SCREEN_HEIGHT / 17)) &&
 			((y > objY && y - SCREEN_HEIGHT / 75 < objY + SCREEN_HEIGHT / 12.3) ||//上
 				(objY > y && objY < y + SCREEN_HEIGHT / 11.8))) {//下
-			let OBS_judgeDir = SertchAroundObj(objX, objY, item, obsHandle);
-			let ENM_judgeDir = SertchAroundObj(objX, objY, item, enmHandle);
-			let DMG_judgeDir = SertchAroundObj(objX, objY, item, dmgHandle);
+			let OBS_judgeDir = SertchAroundObj(objX, objY, obsHandle);
+			let ENM_judgeDir = SertchAroundObj(objX, objY, enmHandle);
+			let DMG_judgeDir = SertchAroundObj(objX, objY, dmgHandle);
+			let WALL_judgeDir = SertchAroundObj(objX, objY, wallHandle);
+			let KEY_judgeDir = SertchAroundObj(objX, objY, keyPoint);
+			let KEY_DOOR_judgeDir = SertchAroundObj(objX, objY, keyDoorPoint);
+			let GOAL_judgeDir = SertchAroundObj(objX, objY, goalPoint);
 
 			if (up) {
-				if (OBS_judgeDir[0] == 1 || (DMG_judgeDir[0] == 1 && num == 1)) {
+				if (OBS_judgeDir[0] == 1 || (DMG_judgeDir[0] == 1 && num == 1) || WALL_judgeDir[0] == 1) {
 					frame = 0;
 					y = P_oldY;
 					if (num == 1) Layer1.removeChild(item);
 					AudioPlayer(1, 1);
 				}
-				else if (ENM_judgeDir[0] == 1) {
+				else if (ENM_judgeDir[0] == 1 || WALL_judgeDir[0] == 1 || array == wallHandle || KEY_DOOR_judgeDir[0] == 1 || KEY_judgeDir[0] == 1 || GOAL_judgeDir[0] == 1) {
 					frame = 0;
 					y = P_oldY;
 					AudioPlayer(1, 1);
@@ -422,13 +522,13 @@ function Kick(array, num) {
 			}
 
 			if (down) {
-				if (OBS_judgeDir[1] == 1 || (DMG_judgeDir[1] == 1 && num == 1)) {
+				if (OBS_judgeDir[1] == 1 || (DMG_judgeDir[1] == 1 && num == 1) || WALL_judgeDir[1] == 1) {
 					frame = 0;
 					y = P_oldY;
 					if (num == 1) Layer1.removeChild(item);
 					AudioPlayer(1, 1);
 				}
-				else if (ENM_judgeDir[1] == 1) {
+				else if (ENM_judgeDir[1] == 1 || WALL_judgeDir[1] == 1 || array == wallHandle || KEY_DOOR_judgeDir[1] == 1 || KEY_judgeDir[1] == 1 || GOAL_judgeDir[1] == 1) {
 					frame = 0;
 					y = P_oldY;
 					AudioPlayer(1, 1);
@@ -442,13 +542,13 @@ function Kick(array, num) {
 			}
 
 			if (left) {
-				if (OBS_judgeDir[2] == 1 || (DMG_judgeDir[2] == 1 && num == 1)) {
+				if (OBS_judgeDir[2] == 1 || (DMG_judgeDir[2] == 1 && num == 1) || WALL_judgeDir[2] == 1) {
 					frame = 0;
 					x = P_oldX;
 					if (num == 1) Layer1.removeChild(item);
 					AudioPlayer(1, 1);
 				}
-				else if (ENM_judgeDir[2] == 1) {
+				else if (ENM_judgeDir[2] == 1 || WALL_judgeDir[2] == 1 || array == wallHandle || KEY_DOOR_judgeDir[2] == 1 || KEY_judgeDir[2] == 1 || GOAL_judgeDir[2] == 1) {
 					frame = 0;
 					x = P_oldX;
 					AudioPlayer(1, 1);
@@ -462,13 +562,13 @@ function Kick(array, num) {
 			}
 
 			if (right) {
-				if (OBS_judgeDir[3] == 1 || (DMG_judgeDir[3] == 1 && num == 1)) {
+				if (OBS_judgeDir[3] == 1 || (DMG_judgeDir[3] == 1 && num == 1) || WALL_judgeDir[3] == 1 ) {
 					frame = 0;
 					x = P_oldX;
-					if(num == 1) Layer1.removeChild(item);
+					if (num == 1) Layer1.removeChild(item);
 					AudioPlayer(1, 1);
 				}
-				else if (ENM_judgeDir[3] == 1) {
+				else if (ENM_judgeDir[3] == 1 || WALL_judgeDir[3] == 1 || array == wallHandle || KEY_DOOR_judgeDir[3] == 1 || KEY_judgeDir[3] == 1 || GOAL_judgeDir[3] == 1) {
 					frame = 0;
 					x = P_oldX;
 					AudioPlayer(1, 1);
@@ -485,37 +585,33 @@ function Kick(array, num) {
 }
 
 
-function SertchAroundObj(C_objX, C_objY, C_id, arrayData) {
+function SertchAroundObj(C_objX, C_objY, arrayData) {
 	let judge_dir = [0, 0, 0, 0];
 	arrayData.forEach((item) => {
 		let Style = window.getComputedStyle(item);
 		let X = Number(Style.getPropertyValue('left').replace("px", ""));
 		let Y = Number(Style.getPropertyValue('top').replace("px", ""));
 
-		if (Math.floor((C_objY - SCREEN_HEIGHT / 10)) == Math.floor(Y) && Math.floor(C_objX) == Math.floor(X)) judge_dir[0] = 1;//障害物の上に障害物がある場合
-		if (Math.floor((C_objY + SCREEN_HEIGHT / 10)) == Math.floor(Y) && Math.floor(C_objX) == Math.floor(X)) judge_dir[1] = 1;//障害物の下に障害物がある場合
-		if (Math.floor((C_objX - SCREEN_HEIGHT / 10)) == Math.floor(X) && Math.floor(C_objY) == Math.floor(Y)) judge_dir[2] = 1;//障害物の左に障害物がある場合
-		if (Math.floor((C_objX + SCREEN_HEIGHT / 10)) == Math.floor(X) && Math.floor(C_objY) == Math.floor(Y)) judge_dir[3] = 1;//障害物の右に障害物がある場合
+		if (Math.floor((C_objY - SCREEN_HEIGHT / 10)) == Math.floor(Y) && Math.floor(C_objX) == Math.floor(X) || Math.floor((C_objY - SCREEN_HEIGHT / 10)) < 0) judge_dir[0] = 1;//障害物の上に障害物がある場合
+		if (Math.floor((C_objY + SCREEN_HEIGHT / 10)) == Math.floor(Y) && Math.floor(C_objX) == Math.floor(X) || Math.floor((C_objY + SCREEN_HEIGHT / 10)) > SCREEN_HEIGHT / 10 * (STAGE_HANDLE.length)) judge_dir[1] = 1;//障害物の下に障害物がある場合
+		if (Math.floor((C_objX - SCREEN_HEIGHT / 10)) == Math.floor(X) && Math.floor(C_objY) == Math.floor(Y) || Math.floor((C_objX - SCREEN_HEIGHT / 10)) < 0) judge_dir[2] = 1;//障害物の左に障害物がある場合
+		if (Math.floor((C_objX + SCREEN_HEIGHT / 10)) == Math.floor(X) && Math.floor(C_objY) == Math.floor(Y) || Math.floor((C_objX + SCREEN_HEIGHT / 10)) > SCREEN_HEIGHT / 10 * (STAGE_HANDLE[0].length)) judge_dir[3] = 1;//障害物の右に障害物がある場合
 	});
 	return judge_dir;
 }
 
-let dmgFlag = false;
-let old_dmgFlag = false;
-function Damage() {
-	for (let i = 0; i < dmgHandle.length; i++) {
-		let dmgStyle = window.getComputedStyle(dmgHandle[i]);
-		let dmgX = Number(dmgStyle.getPropertyValue('left').replace("px", ""));
-		let dmgY = Number(dmgStyle.getPropertyValue('top').replace("px", ""));
-		if (((x > dmgX && x - SCREEN_HEIGHT / 75 < dmgX + SCREEN_HEIGHT / 17) ||
-			(dmgX > x && dmgX < x + SCREEN_HEIGHT / 17)) &&
-			((y > dmgY && y - SCREEN_HEIGHT / 75 < dmgY + SCREEN_HEIGHT / 12.3) ||//上
-				(dmgY > y && dmgY < y + SCREEN_HEIGHT / 11.8))){//下
-				dmgFlag = true;
-				return true;
+function DetectNowPoint(Handle) {
+	for (let i = 0; i < Handle.length; i++) {
+		let style = window.getComputedStyle(Handle[i]);
+		let pointX = Number(style.getPropertyValue('left').replace("px", ""));
+		let pointY = Number(style.getPropertyValue('top').replace("px", ""));
+		if (((x > pointX && x - SCREEN_HEIGHT / 75 < pointX + SCREEN_HEIGHT / 17) ||
+			(pointX > x && pointX < x + SCREEN_HEIGHT / 17)) &&
+			((y > pointY && y - SCREEN_HEIGHT / 75 < pointY + SCREEN_HEIGHT / 12.3) ||//上
+				(pointY > y && pointY < y + SCREEN_HEIGHT / 11.8))) {//下
+			return true;
 		}
 	}
-	dmgFlag = false;
 	return false;
 }
 
@@ -600,12 +696,12 @@ function RenderText() {
 			break;
 		case 18: nameBox.innerHTML = '　';
 			break;
-}
+	}
 	if (waitcounter > SERIF_SPEED) {
 		let serif = Serif[serif_num].substring(0, count);
 		textBox.innerHTML = serif;
 		waitcounter = 0;
-		if(Serif[serif_num].length > count) count++;
+		if (Serif[serif_num].length > count) count++;
 	}
 	waitcounter++;
 	if (Serif[serif_num].length > 25) {
@@ -651,19 +747,63 @@ let Serif = [
 
 
 
-//横10、縦10マスで配置、0が床、1がダメ床、2が障害物、3が敵
-let STAGE_HANDLE = [
-	[1,1,1,1,1,1,1,1,1,1],
-	[1,2,0,0,0,0,0,0,2,1],
-	[1,0,2,0,0,0,0,2,0,1],
-	[1,0,0,2,0,3,2,0,0,1],
-	[1,0,0,3,1,1,0,0,0,1],
-	[1,0,0,0,1,1,3,0,0,1],
-	[1,0,0,2,3,0,2,0,0,1],
-	[1,0,2,0,0,0,0,2,0,1],
-	[1,2,0,0,0,4,0,0,2,1],
-	[1,1,1,1,1,1,1,1,1,1],
-];
+//最大縦横10マス、0床,1ダメ床,2障害物,3敵,4鍵,5扉,6ゴール,7プレイヤー,8進行不可能マス
+
+function GetStage() {
+	let stage;
+	switch (stage_num) {
+		case 0:
+			return stage = [
+				[0, 7, 2, 0, 0],
+				[2, 0, 2, 0, 0],
+				[0, 8, 8, 8, 2],
+				[0, 8, 0, 2, 0],
+				[0, 0, 2, 0, 0],
+				[0, 2, 2, 0, 6],
+			];
+		case 1:
+			return stage = [
+				[8, 0, 0, 0, 0, 6, 8],
+				[8, 0, 8, 8, 8, 8, 0],
+				[7, 0, 0, 2, 0, 8, 0],
+				[2, 0, 8, 2, 0, 8, 0],
+				[0, 2, 0, 0, 8, 8, 0],
+				[0, 0, 8, 2, 0, 2, 0],
+				[0, 2, 0, 0, 2, 0, 0],
+			];
+		case 2:
+			return stage = [
+				[0, 8, 0, 2, 0, 0, 3, 0, 6],
+				[0, 2, 0, 0, 2, 2, 0, 8, 0],
+				[0, 8, 2, 0, 2, 0, 2, 0, 2],
+				[0, 8, 3, 2, 2, 2, 0, 8, 0],
+				[0, 8, 0, 8, 8, 8, 8, 2, 0],
+				[2, 2, 2, 0, 2, 0, 8, 8, 2],
+				[0, 7, 0, 2, 0, 0, 0, 0, 0],
+			];
+		case 3:
+			return stage = [
+				[0, 8, 0, 7, 0, 8, 0, 0, 0],
+				[0, 8, 2, 2, 2, 8, 0, 0, 0],
+				[8, 0, 0, 0, 4, 8, 0, 0, 0],
+				[0, 8, 1, 2, 0, 0, 8, 8, 8],
+				[0, 8, 3, 8, 2, 2, 0, 0, 8],
+				[0, 8, 0, 0, 2, 0, 3, 8, 8],
+				[0, 8, 8, 8, 8, 5, 2, 0, 8],
+				[0, 0, 0, 0, 8, 0, 6, 8, 8],
+				[0, 0, 0, 0, 8, 8, 8, 8, 0],
+			];
+		case 4:
+			return stage = [
+				[8, 8, 8, 8, 8, 8, 8, 8],
+				[3, 4, 5, 0, 0, 0, 0, 0],
+				[0, 0, 0, 0, 2, 2, 2, 0],
+				[0, 1, 2, 3, 4, 5, 6, 0],
+				[0, 3, 3, 3, 3, 3, 3, 3],
+				[7, 0, 0, 0, 0, 0, 0, 0],
+			];
+	}
+}
 
 let now = Date.now();
 
@@ -678,7 +818,7 @@ let charAniNum = 1;
 let isLookNorth = false;
 let Flag = false;
 function Animation() {
-	switch (Page) {
+	switch (page) {
 		case TITLE:
 			break;
 
@@ -762,7 +902,7 @@ function Animation() {
 					break;
 				case 19:
 					bgm.pause();
-					Page = 1;
+					page = 1;
 					break;
 			}
 			break;
@@ -778,7 +918,7 @@ function AudioPlayer(type, num) {
 			audio.volume = 0.60;
 			audio.id = "BGM";
 			audio.play();
-			if(document.getElementById('BGM') == null) screen.appendChild(audio);
+			if (document.getElementById('BGM') == null) screen.appendChild(audio);
 			return audio;
 		case 1:
 			audio.play();
