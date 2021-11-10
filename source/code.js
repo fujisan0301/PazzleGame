@@ -1,3 +1,4 @@
+
 let charIMG = [
 	'../imgs/Char/Player/trim_0.png',
 	'../imgs/Char/Player/trim_1.png',
@@ -38,7 +39,8 @@ const FPS = 60;
 let page = -1, old_page = 0, LoadFlag = false;
 const TITLE = 0, GAME = 1, TALK = 2;
 let up = false, down = false, right = false, left = false, space = false;
-let x = 0, P_oldX, colX = 0, y = 0, P_oldY, colY = 0, frame = 0, Life = 20, dmgFlag = false, keyGet = false;
+let LIFE_MAX = 100;
+let x = 0, P_oldX, colX = 0, y = 0, P_oldY, colY = 0, frame = 0, Life = LIFE_MAX, dmgFlag = false, keyGet = false;
 let animFrame = 0;
 let chara, charaCol, charStyle, obsStyle;
 const MOVE_WAIT = FPS / 10;
@@ -48,12 +50,11 @@ let charHandle = [], enemyHandle = [], bgHandle = [], itemHandle = [];
 let bgm;
 let spriteBox, nameBox, textBox;
 let serifSkipTimer = 0;
-let STAGE_HANDLE = [], stage_num = 4;
+let STAGE_HANDLE = [], stage_num = 0;
 
 let screen = document.createElement('div');
 screen.id = 'screen';
 document.body.appendChild(screen);
-
 
 function preload() {
 	for (let i = 0; i < charIMG.length; i++) {
@@ -142,9 +143,15 @@ function PLAY() {
 			Kick(obsHandle, 0);
 			Kick(enmHandle, 1);
 			Kick(wallHandle, 0);
-			if (DetectNowPoint(goalPoint)) console.log("goal");
-			if (DetectNowPoint(keyPoint))
-			{
+			if (DetectNowPoint(goalPoint)) {
+				stage_num++;
+				if (GetStage(stage_num) != null) STAGE_HANDLE = GetStage(stage_num);
+				else STAGE_HANDLE = GetStage(0);
+				Init();
+			}
+
+			//鍵扉処理
+			if (DetectNowPoint(keyPoint)) {
 				Layer0.removeChild(document.getElementById('Key'));
 				keyGet = true;
 			}
@@ -156,11 +163,11 @@ function PLAY() {
 				}
 				else {
 					Layer2.removeChild(document.getElementById('KeyDoor'))
+					keyGet = false;
 				}
 			}
 
 			document.getElementById('LIFE').innerHTML = "LIFE " + Life;
-			//Damage();
 			break;
 
 		case TALK:	//TALKパートを描画するメソッド
@@ -183,7 +190,7 @@ function Init() {
 			break;
 
 		case GAME:	//GAMEを描画するメソッド
-			STAGE_HANDLE = GetStage();
+			STAGE_HANDLE = GetStage(stage_num);
 			RenderMap();
 			//LIFE
 			let l = document.createElement('div');
@@ -193,6 +200,10 @@ function Init() {
 			l.style.fontSize = SCREEN_HEIGHT / 10 + "px";
 			l.style.textAlign = "right";
 			l.id = "LIFE";
+			Life = LIFE_MAX;
+
+			isLookNorth = false;
+
 			bgm = AudioPlayer(0, 2);
 			LoadFlag = true;
 			break;
@@ -288,7 +299,7 @@ function KeyDown(event) {
 					}
 				}
 				switch (keycode) {
-					case 82: Life = 20; RenderMap(); break;
+					case 82: Life = LIFE_MAX; isLookNorth = false; RenderMap(); break;
 				}
 			}
 			break;
@@ -562,7 +573,7 @@ function Kick(array, num) {
 			}
 
 			if (right) {
-				if (OBS_judgeDir[3] == 1 || (DMG_judgeDir[3] == 1 && num == 1) || WALL_judgeDir[3] == 1 ) {
+				if (OBS_judgeDir[3] == 1 || (DMG_judgeDir[3] == 1 && num == 1) || WALL_judgeDir[3] == 1) {
 					frame = 0;
 					x = P_oldX;
 					if (num == 1) Layer1.removeChild(item);
@@ -749,9 +760,9 @@ let Serif = [
 
 //最大縦横10マス、0床,1ダメ床,2障害物,3敵,4鍵,5扉,6ゴール,7プレイヤー,8進行不可能マス
 
-function GetStage() {
+function GetStage(num) {
 	let stage;
-	switch (stage_num) {
+	switch (num) {
 		case 0:
 			return stage = [
 				[0, 7, 2, 0, 0],
@@ -764,7 +775,7 @@ function GetStage() {
 		case 1:
 			return stage = [
 				[8, 0, 0, 0, 0, 6, 8],
-				[8, 0, 8, 8, 8, 8, 0],
+				[8, 5, 8, 8, 8, 8, 4],
 				[7, 0, 0, 2, 0, 8, 0],
 				[2, 0, 8, 2, 0, 8, 0],
 				[0, 2, 0, 0, 8, 8, 0],
@@ -802,6 +813,7 @@ function GetStage() {
 				[0, 3, 3, 3, 3, 3, 3, 3],
 				[7, 0, 0, 0, 0, 0, 0, 0],
 			];
+		default: return null;
 	}
 }
 
