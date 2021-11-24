@@ -12,6 +12,11 @@ let enemyIMG = [
 ];
 let bgIMG = [
 	'../imgs/TALK_BG.jpg',
+	'../imgs/Background/stage_0.png',
+	'../imgs/Background/stage_1.png',
+	'../imgs/Background/stage_2.png',
+	'../imgs/Background/stage_3.png',
+	'../imgs/Background/stage_4.png',
 ];
 let ItemIMG = [
 	'../imgs/Items/suzu.png',
@@ -32,7 +37,13 @@ let soundFILE = [
 		'../snds/SE/Dash_OpenDoor.wav',	//走ってきてふすまを開ける
 	]
 ];
-
+let posHandle = [//ステージを背景に合わせる用の位置の配列,[x, y]
+	[0, 0],
+	[0, 0],
+	[0, 0],
+	[0, 0],
+	[0, 0],
+]
 const FPS = 60;
 
 
@@ -84,7 +95,6 @@ function deload() {
 	}
 	console.log("DELOAD");
 }
-
 
 function main() {
 	if (old_page != page) {
@@ -190,7 +200,14 @@ function Init() {
 			break;
 
 		case GAME:	//GAMEを描画するメソッド
+			posHandle[0][0] = SCREEN_HEIGHT / 4;
+			posHandle[0][1] = SCREEN_HEIGHT / 5;
+			posHandle[1][0] = SCREEN_HEIGHT / 6.58;
+			posHandle[1][1] = SCREEN_HEIGHT / 6.58;
+
+
 			STAGE_HANDLE = GetStage(stage_num);
+
 			RenderMap();
 			//LIFE
 			let l = document.createElement('div');
@@ -198,7 +215,8 @@ function Init() {
 			l.appendChild(lt);
 			screen.appendChild(l);
 			l.style.fontSize = SCREEN_HEIGHT / 10 + "px";
-			l.style.textAlign = "right";
+			l.style.right = 0 + "px";
+			l.style.position = 'absolute';
 			l.id = "LIFE";
 			Life = LIFE_MAX;
 
@@ -246,7 +264,6 @@ function Control() {
 					}
 				}
 				else dmgFlag = false;
-
 			}
 			if (frame > -2) frame--;
 
@@ -301,6 +318,9 @@ function KeyDown(event) {
 				switch (keycode) {
 					case 82: Life = LIFE_MAX; isLookNorth = false; RenderMap(); break;
 				}
+				switch (keycode) {
+					case 78: Life = LIFE_MAX; isLookNorth = false; stage_num++; Init(); RenderMap(); break;
+				}
 			}
 			break;
 
@@ -331,18 +351,41 @@ function RenderMap() {
 	while (enmHandle[0] != null) {
 		enmHandle.pop();
 	}
+	if (document.getElementById('BGLayer') != null) {
+		document.getElementById('BGLayer').remove();
+	}
+
 	for (let i = 0; i < 4; i++) {
 		if (document.getElementById('Layer' + i) != null) {
 			document.getElementById('Layer' + i).remove();
 		}
 	}
 	let dmCount = 0, obsCount = 0, eneCount = 0, massCount = 0;
+	let BGLayer = document.createElement('div');//背景レイヤー
+	BGLayer.id = "BGLayer";
 	let Layer0 = document.createElement('div');//床レイヤー(通常マス、ダメージ、ゴール、鍵)
 	Layer0.id = "Layer0";
 	let Layer1 = document.createElement('div');//オブジェクトレイヤー(敵、障害物、プレイヤー)
 	Layer1.id = "Layer1";
 	let Layer2 = document.createElement('div');//シンボルレイヤー(壁、鍵扉)
 	Layer2.id = "Layer2";
+
+	let bg = document.createElement('img');
+	bg.src = bgHandle[stage_num + 1].src;
+	bg.style.position = 'absolute';
+	bg.style.width = SCREEN_HEIGHT + "px";
+	BGLayer.appendChild(bg);
+	screen.appendChild(BGLayer);
+
+	Layer0.style.position = 'absolute';
+	Layer1.style.position = 'absolute';
+	Layer2.style.position = 'absolute';
+	Layer0.style.left = posHandle[stage_num][0] + "px";
+	Layer0.style.top = posHandle[stage_num][1] + "px";
+	Layer1.style.left = posHandle[stage_num][0] + "px";
+	Layer1.style.top = posHandle[stage_num][1] + "px";
+	Layer2.style.left = posHandle[stage_num][0] + "px";
+	Layer2.style.top = posHandle[stage_num][1] + "px";
 
 	for (let i = 0; i < STAGE_HANDLE.length; i++) {
 		for (let e = 0; e < STAGE_HANDLE[i].length; e++) {
@@ -357,7 +400,7 @@ function RenderMap() {
 				m.style.top = i * SCREEN_HEIGHT / 10 + "px";
 				m.style.left = e * SCREEN_HEIGHT / 10 + "px";
 				m.style.order = "4";
-				Layer0.appendChild(m);
+				//Layer0.appendChild(m);
 			}
 			switch (STAGE_HANDLE[i][e]) {
 				case 1://ダメージ床
