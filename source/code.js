@@ -99,7 +99,6 @@ function deload() {
 function main() {
 	if (old_page != page) {
 		LoadFlag = false;
-		console.log("ok");
 		deload();
 		preload();
 		Init();
@@ -159,6 +158,11 @@ function PLAY() {
 				else STAGE_HANDLE = GetStage(0);
 				Init();
 			}
+			
+			document.getElementById('LIFE').innerHTML = "LIFE " + Life;
+			if(Life <= 0){
+				document.getElementById("LIFE").innerHTML = "Rキーでリスタート";
+			}
 
 			//鍵扉処理
 			if (DetectNowPoint(keyPoint)) {
@@ -176,8 +180,6 @@ function PLAY() {
 					keyGet = false;
 				}
 			}
-
-			document.getElementById('LIFE').innerHTML = "LIFE " + Life;
 			break;
 
 		case TALK:	//TALKパートを描画するメソッド
@@ -203,8 +205,13 @@ function Init() {
 			posHandle[0][0] = SCREEN_HEIGHT / 4;
 			posHandle[0][1] = SCREEN_HEIGHT / 5;
 			posHandle[1][0] = SCREEN_HEIGHT / 6.58;
-			posHandle[1][1] = SCREEN_HEIGHT / 6.58;
-
+			posHandle[1][1] = SCREEN_HEIGHT / 5;
+			posHandle[2][0] = SCREEN_HEIGHT / 21;
+			posHandle[2][1] = SCREEN_HEIGHT / 5;
+			posHandle[3][0] = SCREEN_HEIGHT / 21;
+			posHandle[3][1] = SCREEN_HEIGHT / 10;
+			posHandle[4][0] = SCREEN_HEIGHT / 21;
+			posHandle[4][1] = SCREEN_HEIGHT / 7;
 
 			STAGE_HANDLE = GetStage(stage_num);
 
@@ -218,8 +225,8 @@ function Init() {
 			l.style.right = 0 + "px";
 			l.style.position = 'absolute';
 			l.id = "LIFE";
-			Life = LIFE_MAX;
-
+			Life = GetStageInfo(stage_num);
+			l.innerHTML = "LIFE " + Life;
 			isLookNorth = false;
 
 			bgm = AudioPlayer(0, 2);
@@ -259,7 +266,9 @@ function Control() {
 				if (DetectNowPoint(dmgHandle)) {
 					if (!dmgFlag) {
 						dmgFlag = true;
-						if (Life > 0) Life--;
+						if (Life > 0){
+							Life--;
+						} //Life--;
 						AudioPlayer(1, 2);
 					}
 				}
@@ -304,22 +313,32 @@ function KeyDown(event) {
 
 		case GAME:
 			if (frame < 0) {
-				if (!up && !down && !left && !right && Life > 0) {
-					charStyle = window.getComputedStyle(chara);
-					P_oldX = Number(charStyle.getPropertyValue('left').replace("px", ""));
-					P_oldY = Number(charStyle.getPropertyValue('top').replace("px", ""));
-					switch (keycode) {
-						case 37: if (SCREEN_HEIGHT / 10 < x) { left = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
-						case 38: if (SCREEN_HEIGHT / 10 < y) { up = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
-						case 39: if (x < SCREEN_HEIGHT / 10 * (STAGE_HANDLE[0].length - 1)) { right = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
-						case 40: if (y < SCREEN_HEIGHT / 10 * (STAGE_HANDLE.length - 1)) { down = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
+				if (!up && !down && !left && !right) {
+					if(0 < Life){
+						charStyle = window.getComputedStyle(chara);
+						P_oldX = Number(charStyle.getPropertyValue('left').replace("px", ""));
+						P_oldY = Number(charStyle.getPropertyValue('top').replace("px", ""));
+						switch (keycode) {
+							case 37: if (SCREEN_HEIGHT / 10 < x) { left = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
+							case 38: if (SCREEN_HEIGHT / 10 < y) { up = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
+							case 39: if (x < SCREEN_HEIGHT / 10 * (STAGE_HANDLE[0].length - 1)) { right = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
+							case 40: if (y < SCREEN_HEIGHT / 10 * (STAGE_HANDLE.length - 1)) { down = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
+						}
 					}
-				}
-				switch (keycode) {
-					case 82: Life = LIFE_MAX; isLookNorth = false; RenderMap(); break;
-				}
-				switch (keycode) {
-					case 78: Life = LIFE_MAX; isLookNorth = false; stage_num++; Init(); RenderMap(); break;
+					switch (keycode) {
+						case 82: 
+						 Life = GetStageInfo(stage_num); 
+						 isLookNorth = false;
+						 RenderMap(); 
+						 break;
+						case 78: 
+						 Life = GetStageInfo(stage_num);
+						 isLookNorth = false; 
+						 stage_num++; 
+						 Init(); 
+						 RenderMap(); 
+						 break;
+					}
 				}
 			}
 			break;
@@ -849,14 +868,22 @@ function GetStage(num) {
 			];
 		case 4:
 			return stage = [
-				[8, 8, 8, 8, 8, 8, 8, 8],
-				[3, 4, 5, 0, 0, 0, 0, 0],
-				[0, 0, 0, 0, 2, 2, 2, 0],
-				[0, 1, 2, 3, 4, 5, 6, 0],
-				[0, 3, 3, 3, 3, 3, 3, 3],
-				[7, 0, 0, 0, 0, 0, 0, 0],
+				[0, 0, 8, 0, 0, 0, 8, 0, 0],
+				[8, 8, 8, 2, 5, 2, 8, 8, 0],
+				[8, 2, 8, 2, 0, 0, 8, 0, 8],
+				[2, 0, 0, 2, 2, 2, 0, 0, 4],
+				[0, 2, 2, 2, 0, 0, 2, 2, 0],
+				[8, 7, 0, 2, 0, 0, 2, 0, 8],
 			];
 		default: return null;
+	}
+}
+function GetStageInfo(num){
+	switch(num){
+		case 0:return 15;
+		case 1:return 44;
+		case 2:return 20;
+		case 3:return 46;
 	}
 }
 
