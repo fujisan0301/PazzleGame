@@ -1,4 +1,3 @@
-
 let charIMG = [
 	'../imgs/Char/Player/trim_0.png',
 	'../imgs/Char/Player/trim_1.png',
@@ -11,12 +10,17 @@ let enemyIMG = [
 	'../imgs/Char/Enemy/Enemy_0.png',
 ];
 let bgIMG = [
-	'../imgs/TALK_BG.jpg',
+	'../imgs/Background/TALK_BG.png',
 	'../imgs/Background/stage_0.png',
 	'../imgs/Background/stage_1.png',
 	'../imgs/Background/stage_2.png',
 	'../imgs/Background/stage_3.png',
 	'../imgs/Background/stage_4.png',
+];
+let objIMG = [
+	'../imgs/obj/stone_1trim.png',
+	'../imgs/obj/key.png',
+	'../imgs/obj/key_door.png',
 ];
 let ItemIMG = [
 	'../imgs/Items/suzu.png',
@@ -37,6 +41,35 @@ let soundFILE = [
 		'../snds/SE/Dash_OpenDoor.wav',	//走ってきてふすまを開ける
 	]
 ];
+
+let Serif = [
+	['　', '明日はこの村の伝統行事「みたま祭」'],
+	['　', '神社には様々な屋台が立ち並び毎年賑わっている。'],
+	['　', 'その中でも巫女様の神楽は毎年多くの方々が見に来る好評イベントだ。'],
+	['　', 'いまはその神楽の準備をしているところなんだけど...'],
+	['神主', '「ない！ない！！」'],
+	['神主', '「神楽で使う予定だった鉾鈴がない！！」'],
+	['　', '鉾鈴'],
+	['　', '別名鈴なりともいう。'],
+	['　', '鈴には「邪なるものを祓う力」があると考えられ、'],
+	['　', '澄んだ音で神の御礼を引き付け大きな御神徳を得ようとするものと言われている。'],
+	['　', 'そして神楽にとって必要不可欠なものである。'],
+	['　', 'そんな大切な鉾鈴が...'],
+	['神主', '「どこにもない...」'],
+	['村人', '「神主様！神主様あぁ！」'],
+	['　', 'あたふたしていたところに祭りの準備をしていた青年が訪ねてきた'],
+	['村人', '「神主様先ほど怪異が起こり、妖怪がここの鉾鈴を盗んでいったと町の子供たちが！」'],
+	['神主', '「なに！それは誠か！」'],
+	['村人', '「はい！森の方へ行ったそうです」'],
+	['　', '神主は急いで森へ駆け出した。'],
+	['　', 'ゲーム画面へ'],
+	['神主', '「鉾鈴は返してもらうぞ！」'],
+	['妖魔', '「ぐぁぁぁ」'],
+	['　', '無事に鉾鈴を取り戻した神主は急ぎ神社に戻り、巫女様に届けることができました。'],
+	['　', 'その後舞を奉納することができ、祭りは大成功を収めた。'],
+	['　', 'END'],
+];
+
 let posHandle = [//ステージを背景に合わせる用の位置の配列,[x, y]
 	[0, 0],
 	[0, 0],
@@ -47,7 +80,7 @@ let posHandle = [//ステージを背景に合わせる用の位置の配列,[x,
 const FPS = 60;
 
 
-let page = -1, old_page = 0, LoadFlag = false;
+let old_stage_num = -2, old_page = -2, LoadFlag = false;
 const TITLE = 0, GAME = 1, TALK = 2;
 let up = false, down = false, right = false, left = false, space = false;
 let LIFE_MAX = 100;
@@ -57,11 +90,11 @@ let chara, charaCol, charStyle, obsStyle;
 const MOVE_WAIT = FPS / 10;
 let SCREEN_WIDTH, SCREEN_HEIGHT;
 let obsHandle = [], dmgHandle = [], enmHandle = [], goalPoint = [], wallHandle = [], keyPoint = [], keyDoorPoint = [];
-let charHandle = [], enemyHandle = [], bgHandle = [], itemHandle = [];
+let charHandle = [], enemyHandle = [], bgHandle = [], itemHandle = [], objHandle = [];
 let bgm;
 let spriteBox, nameBox, textBox;
 let serifSkipTimer = 0;
-let STAGE_HANDLE = [], stage_num = 0;
+let STAGE_HANDLE = [];
 
 let screen = document.createElement('div');
 screen.id = 'screen';
@@ -83,7 +116,11 @@ function preload() {
 		img.src = ItemIMG[i];
 		itemHandle.push(img);
 	}
-	console.log("LOAD");
+	for (let i = 0; i < objIMG.length; i++) {
+		let img = document.createElement('img');
+		img.src = objIMG[i];
+		objHandle.push(img);
+	}
 }
 
 function deload() {
@@ -93,11 +130,18 @@ function deload() {
 	for (let i = 0; i < bgIMG.length; i++) {
 		bgHandle.pop();
 	}
-	console.log("DELOAD");
 }
 
 function main() {
-	if (old_page != page) {
+	if (page == -1) {
+		page = 2;
+	}
+	if (stage_num == 5) {
+		page = 2;
+	}
+
+	if (old_page != page || old_stage_num != stage_num) {
+		console.log("Init");
 		LoadFlag = false;
 		deload();
 		preload();
@@ -105,15 +149,12 @@ function main() {
 	}
 
 	old_page = page;
-
-	if (page == -1) {
-		page = 0;
-	}
+	old_stage_num = stage_num;
 
 	if (LoadFlag) {
 		PLAY();
-		Animation();
 		Control();
+		Animation();
 	}
 
 	addEventListener("keydown", function () {
@@ -126,23 +167,23 @@ function main() {
 
 	Interval(FPS);
 
+
 	requestAnimationFrame(main);
 }
 requestAnimationFrame(main);
 
-function Background(num) {
+function Background(num, width, height) {
 	let bg = document.createElement('img');
 	bg.src = bgHandle[num].src;
 	bg.style.position = 'absolute';
-	bg.style.width = "100vw";
-	bg.style.height = "100vh";
+	bg.style.width = width;
+	bg.style.height = height;
 	bg.style.top = 0 + "px";
 	bg.style.left = 0 + "px";
-	document.getElementById('screen').appendChild(bg);
+	return bg;
 }
 
 function PLAY() {
-	console.log(isPlaying(bgm));
 	switch (page) {
 		case TITLE:	//TITLEを描画するメソッド
 
@@ -154,13 +195,11 @@ function PLAY() {
 			Kick(wallHandle, 0);
 			if (DetectNowPoint(goalPoint)) {
 				stage_num++;
-				if (GetStage(stage_num) != null) STAGE_HANDLE = GetStage(stage_num);
-				else STAGE_HANDLE = GetStage(0);
 				Init();
 			}
-			
+
 			document.getElementById('LIFE').innerHTML = "LIFE " + Life;
-			if(Life <= 0){
+			if (Life <= 0) {
 				document.getElementById("LIFE").innerHTML = "Rキーでリスタート";
 			}
 
@@ -177,6 +216,9 @@ function PLAY() {
 				}
 				else {
 					Layer2.removeChild(document.getElementById('KeyDoor'))
+					x = P_oldX;
+					y = P_oldY;
+					frame = 0;
 					keyGet = false;
 				}
 			}
@@ -208,12 +250,13 @@ function Init() {
 			posHandle[1][1] = SCREEN_HEIGHT / 5;
 			posHandle[2][0] = SCREEN_HEIGHT / 21;
 			posHandle[2][1] = SCREEN_HEIGHT / 5;
-			posHandle[3][0] = SCREEN_HEIGHT / 21;
-			posHandle[3][1] = SCREEN_HEIGHT / 10;
-			posHandle[4][0] = SCREEN_HEIGHT / 21;
-			posHandle[4][1] = SCREEN_HEIGHT / 7;
+			posHandle[3][0] = SCREEN_HEIGHT / 10;
+			posHandle[3][1] = SCREEN_HEIGHT / 15;
+			//posHandle[4][0] = SCREEN_HEIGHT / 10;
+			//posHandle[4][1] = SCREEN_HEIGHT / 7;
 
-			STAGE_HANDLE = GetStage(stage_num);
+			if (GetStage(stage_num) != null) { STAGE_HANDLE = GetStage(stage_num); }
+			else { STAGE_HANDLE = GetStage(0); stage_num = 0; }
 
 			RenderMap();
 			//LIFE
@@ -222,7 +265,8 @@ function Init() {
 			l.appendChild(lt);
 			screen.appendChild(l);
 			l.style.fontSize = SCREEN_HEIGHT / 10 + "px";
-			l.style.right = 0 + "px";
+			l.style.right = "0px";
+			l.style.bottom = "0px";
 			l.style.position = 'absolute';
 			l.id = "LIFE";
 			Life = GetStageInfo(stage_num);
@@ -235,11 +279,13 @@ function Init() {
 
 		case TALK:	//TALKパートを描画するメソッド
 			bgm = AudioPlayer(0, 0);
-			Background(0);
+			i = document.createElement("div");
+			i.id = "BGLayer";
+			i.appendChild(Background(0, SCREEN_WIDTH + "px", SCREEN_HEIGHT + "px"));
+			screen.appendChild(i);
 			spriteBox = CreateSpriteBox();
 			CreateTextBox();
 			count = 0;
-			serif_num = 0;
 			LoadFlag = true;
 			break;
 	}
@@ -266,7 +312,7 @@ function Control() {
 				if (DetectNowPoint(dmgHandle)) {
 					if (!dmgFlag) {
 						dmgFlag = true;
-						if (Life > 0){
+						if (Life > 0) {
 							Life--;
 						} //Life--;
 						AudioPlayer(1, 2);
@@ -284,9 +330,9 @@ function Control() {
 
 		case TALK:
 			if (space) {
-				if (Serif[serif_num].length != count) {
+				if (Serif[serif_num][1].length != count) {
 					space = false;
-					count = Serif[serif_num].length;
+					count = Serif[serif_num][1].length;
 				}
 				else {
 					if (serifSkipTimer > 10) {
@@ -314,7 +360,7 @@ function KeyDown(event) {
 		case GAME:
 			if (frame < 0) {
 				if (!up && !down && !left && !right) {
-					if(0 < Life){
+					if (0 < Life) {
 						charStyle = window.getComputedStyle(chara);
 						P_oldX = Number(charStyle.getPropertyValue('left').replace("px", ""));
 						P_oldY = Number(charStyle.getPropertyValue('top').replace("px", ""));
@@ -326,18 +372,18 @@ function KeyDown(event) {
 						}
 					}
 					switch (keycode) {
-						case 82: 
-						 Life = GetStageInfo(stage_num); 
-						 isLookNorth = false;
-						 RenderMap(); 
-						 break;
-						case 78: 
-						 Life = GetStageInfo(stage_num);
-						 isLookNorth = false; 
-						 stage_num++; 
-						 Init(); 
-						 RenderMap(); 
-						 break;
+						case 82:
+							Life = GetStageInfo(stage_num);
+							isLookNorth = false;
+							RenderMap();
+							break;
+						case 78:
+							Life = GetStageInfo(stage_num);
+							isLookNorth = false;
+							stage_num++;
+							//Init();
+							//RenderMap();
+							break;
 					}
 				}
 			}
@@ -389,11 +435,7 @@ function RenderMap() {
 	let Layer2 = document.createElement('div');//シンボルレイヤー(壁、鍵扉)
 	Layer2.id = "Layer2";
 
-	let bg = document.createElement('img');
-	bg.src = bgHandle[stage_num + 1].src;
-	bg.style.position = 'absolute';
-	bg.style.width = SCREEN_HEIGHT + "px";
-	BGLayer.appendChild(bg);
+	BGLayer.appendChild(Background(stage_num + 1, "auto", SCREEN_HEIGHT + "px"));
 	screen.appendChild(BGLayer);
 
 	Layer0.style.position = 'absolute';
@@ -463,7 +505,7 @@ function RenderMap() {
 					break;
 				case 4://鍵
 					let Key = document.createElement('img');
-					Key.src = '../imgs/Key.png';
+					Key.src = objHandle[1].src;
 					Key.style.position = 'absolute';
 					Key.id = "Key";
 					keyPoint.push(Key);
@@ -475,7 +517,7 @@ function RenderMap() {
 					break;
 				case 5://鍵扉
 					let kDoor = document.createElement('img');
-					kDoor.src = '../imgs/KeyDoor.png';
+					kDoor.src = objHandle[2].src;
 					kDoor.style.position = 'absolute';
 					kDoor.id = "KeyDoor";
 					keyDoorPoint.push(kDoor);
@@ -750,41 +792,15 @@ function CreateTextBox() {
 function RenderText() {
 	nameBox = document.getElementById('name');
 	textBox = document.getElementById('text');
-	switch (serif_num) {
-		case 4: nameBox.innerHTML = '神主';
-			break;
-		case 6: nameBox.innerHTML = '　';
-			break;
-		case 12: nameBox.innerHTML = '神主';
-			break;
-		case 13: nameBox.innerHTML = '村人';
-			break;
-		case 14: nameBox.innerHTML = '　';
-			break;
-		case 15: nameBox.innerHTML = '村人';
-			break;
-		case 16: nameBox.innerHTML = '神主';
-			break;
-		case 17: nameBox.innerHTML = '村人';
-			break;
-		case 18: nameBox.innerHTML = '　';
-			break;
-	}
+
 	if (waitcounter > SERIF_SPEED) {
-		let serif = Serif[serif_num].substring(0, count);
+		nameBox.innerHTML = Serif[serif_num][0];
+		let serif = Serif[serif_num][1].substring(0, count);
 		textBox.innerHTML = serif;
 		waitcounter = 0;
-		if (Serif[serif_num].length > count) count++;
+		if (Serif[serif_num][1].length > count) count++;
 	}
 	waitcounter++;
-	if (Serif[serif_num].length > 25) {
-		textBox.style.marginLeft = 10 + "em";
-		textBox.style.marginRight = 10 + "em";
-	}
-	else {
-		textBox.style.marginLeft = 20 + "em";
-		textBox.style.marginRight = 20 + "em";
-	}
 }
 
 let count = 0;
@@ -795,33 +811,7 @@ let waitcounter = 0;
 let CharaName = [
 ];
 
-let Serif = [
-	'明日はこの村の伝統行事「みたま祭」',
-	'神社には様々な屋台が立ち並び毎年賑わっている。',
-	'その中でも巫女様の神楽は毎年多くの方々が見に来る好評イベントだ。',
-	'いまはその神楽の準備をしているところなんだけど...',
-	'「ない！ない！！」',
-	'「神楽で使う予定だった鉾鈴がない！！」',
-	'鉾鈴',
-	'別名鈴なりともいう。',
-	'鈴には「邪なるものを祓う力」があると考えられ、',
-	'澄んだ音で神の御礼を引き付け大きな御神徳を得ようとするものと言われている。',
-	'そして神楽にとって必要不可欠なものである。',
-	'そんな大切な鉾鈴が...',
-	'「どこにもない...」',
-	'「神主様！神主様あぁ！」',
-	'あたふたしていたところに祭りの準備をしていた青年が訪ねてきた',
-	'「神主様先ほど怪異が起こり、妖怪がここの鉾鈴を盗んでいったと町の子供たちが！」',
-	'「なに！それは誠か！」',
-	'「はい！森の方へ行ったそうです」',
-	'神主は急いで森へ駆け出した。',
-	'ゲーム画面へ',
-];
-
-
-
 //最大縦横10マス、0床,1ダメ床,2障害物,3敵,4鍵,5扉,6ゴール,7プレイヤー,8進行不可能マス
-
 function GetStage(num) {
 	let stage;
 	switch (num) {
@@ -836,54 +826,59 @@ function GetStage(num) {
 			];
 		case 1:
 			return stage = [
-				[8, 0, 0, 0, 0, 6, 8],
-				[8, 5, 8, 8, 8, 8, 4],
-				[7, 0, 0, 2, 0, 8, 0],
+				[8, 0, 0, 7, 5, 6, 8],
+				[8, 0, 8, 8, 8, 8, 4],
+				[0, 2, 0, 2, 0, 8, 0],
 				[2, 0, 8, 2, 0, 8, 0],
 				[0, 2, 0, 0, 8, 8, 0],
-				[0, 0, 8, 2, 0, 2, 0],
-				[0, 2, 0, 0, 2, 0, 0],
+				[0, 0, 8, 0, 2, 0, 0],
+				[0, 0, 0, 0, 0, 2, 0],
 			];
 		case 2:
 			return stage = [
 				[0, 8, 0, 2, 0, 0, 3, 0, 6],
 				[0, 2, 0, 0, 2, 2, 0, 8, 0],
-				[0, 8, 2, 0, 2, 0, 2, 0, 2],
-				[0, 8, 3, 2, 2, 2, 0, 8, 0],
-				[0, 8, 0, 8, 8, 8, 8, 2, 0],
-				[2, 2, 2, 0, 2, 0, 8, 8, 2],
+				[0, 8, 2, 0, 2, 0, 2, 2, 2],
+				[0, 8, 3, 2, 2, 2, 0, 2, 3],
+				[2, 8, 0, 8, 8, 8, 8, 2, 0],
+				[0, 2, 0, 0, 2, 0, 8, 8, 0],
 				[0, 7, 0, 2, 0, 0, 0, 0, 0],
 			];
 		case 3:
 			return stage = [
-				[0, 8, 0, 7, 0, 8, 0, 0, 0],
-				[0, 8, 2, 2, 2, 8, 0, 0, 0],
-				[8, 0, 0, 0, 4, 8, 0, 0, 0],
-				[0, 8, 1, 2, 0, 0, 8, 8, 8],
-				[0, 8, 3, 8, 2, 2, 0, 0, 8],
-				[0, 8, 0, 0, 2, 0, 3, 8, 8],
-				[0, 8, 8, 8, 8, 5, 2, 0, 8],
-				[0, 0, 0, 0, 8, 0, 6, 8, 8],
-				[0, 0, 0, 0, 8, 8, 8, 8, 0],
+				[8, 8, 8, 8, 0, 0, 0, 0],
+				[8, 2, 6, 8, 0, 0, 0, 0],
+				[8, 5, 3, 2, 8, 0, 0, 0],
+				[8, 0, 0, 2, 0, 8, 8, 8],
+				[8, 0, 2, 0, 0, 2, 0, 8],
+				[8, 2, 0, 8, 8, 3, 4, 8],
+				[8, 0, 2, 3, 2, 8, 2, 8],
+				[8, 8, 0, 0, 0, 0, 7, 8],
+				[0, 0, 8, 8, 8, 8, 8, 0],
 			];
 		case 4:
 			return stage = [
-				[0, 0, 8, 0, 0, 0, 8, 0, 0],
-				[8, 8, 8, 2, 5, 2, 8, 8, 0],
-				[8, 2, 8, 2, 0, 0, 8, 0, 8],
-				[2, 0, 0, 2, 2, 2, 0, 0, 4],
-				[0, 2, 2, 2, 0, 0, 2, 2, 0],
-				[8, 7, 0, 2, 0, 0, 2, 0, 8],
+				[0, 0, 0, 0, 8, 8, 8, 8, 0, 0],
+				[0, 0, 0, 0, 8, 6, 0, 8, 8, 8],
+				[8, 8, 8, 8, 8, 2, 5, 3, 2, 8],
+				[8, 4, 0, 2, 3, 2, 0, 2, 2, 8],
+				[8, 3, 2, 0, 3, 8, 2, 3, 0, 8],
+				[8, 0, 2, 3, 2, 3, 3, 0, 2, 8],
+				[8, 2, 0, 0, 2, 0, 2, 2, 3, 8],
+				[8, 0, 2, 0, 0, 2, 0, 0, 2, 8],
+				[8, 0, 7, 8, 8, 8, 8, 8, 8, 8],
+				[8, 8, 8, 0, 0, 0, 0, 0, 0, 0],
 			];
 		default: return null;
 	}
 }
-function GetStageInfo(num){
-	switch(num){
-		case 0:return 15;
-		case 1:return 44;
-		case 2:return 20;
-		case 3:return 46;
+function GetStageInfo(num) {
+	switch (num) {
+		case 0: return 15;
+		case 1: return 48;
+		case 2: return 20;
+		case 3: return 29;
+		case 4: return 39;
 	}
 }
 
@@ -985,6 +980,7 @@ function Animation() {
 				case 19:
 					bgm.pause();
 					page = 1;
+					serif_num++;
 					break;
 			}
 			break;
