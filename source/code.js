@@ -68,6 +68,7 @@ let Serif = [
 	['　', '無事に鉾鈴を取り戻した神主は急ぎ神社に戻り、巫女様に届けることができました。'],
 	['　', 'その後舞を奉納することができ、祭りは大成功を収めた。'],
 	['　', 'END'],
+	['　', 'GAMEOVER'],
 ];
 
 let posHandle = [//ステージを背景に合わせる用の位置の配列,[x, y]
@@ -286,6 +287,7 @@ function Init() {
 			spriteBox = CreateSpriteBox();
 			CreateTextBox();
 			count = 0;
+			if(stage_num == 5) serif_num = 20;
 			LoadFlag = true;
 			break;
 	}
@@ -830,18 +832,18 @@ function GetStage(num) {
 				[8, 0, 8, 8, 8, 8, 4],
 				[0, 2, 0, 2, 0, 8, 0],
 				[2, 0, 8, 2, 0, 8, 0],
-				[0, 2, 0, 0, 8, 8, 0],
+				[0, 2, 2, 0, 8, 8, 0],
 				[0, 0, 8, 0, 2, 0, 0],
 				[0, 0, 0, 0, 0, 2, 0],
 			];
 		case 2:
 			return stage = [
-				[0, 8, 0, 2, 0, 0, 3, 0, 6],
-				[0, 2, 0, 0, 2, 2, 0, 8, 0],
-				[0, 8, 2, 0, 2, 0, 2, 2, 2],
-				[0, 8, 3, 2, 2, 2, 0, 2, 3],
-				[2, 8, 0, 8, 8, 8, 8, 2, 0],
-				[0, 2, 0, 0, 2, 0, 8, 8, 0],
+				[0, 8, 0, 2, 0, 2, 3, 0, 6],
+				[0, 0, 2, 0, 2, 0, 0, 8, 0],
+				[0, 8, 0, 2, 0, 2, 2, 0, 3],
+				[0, 8, 3, 0, 0, 3, 2, 2, 0],
+				[2, 8, 0, 8, 8, 8, 8, 0, 2],
+				[0, 2, 2, 0, 2, 0, 8, 8, 0],
 				[0, 7, 0, 2, 0, 0, 0, 0, 0],
 			];
 		case 3:
@@ -876,7 +878,7 @@ function GetStageInfo(num) {
 	switch (num) {
 		case 0: return 15;
 		case 1: return 48;
-		case 2: return 20;
+		case 2: return 29;
 		case 3: return 29;
 		case 4: return 39;
 	}
@@ -981,6 +983,9 @@ function Animation() {
 					bgm.pause();
 					page = 1;
 					serif_num++;
+					break;
+				case 24:
+					window.location.href = 'タイトル.html';
 					break;
 			}
 			break;

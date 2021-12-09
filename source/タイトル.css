@@ -1,0 +1,61 @@
+.start {
+	padding: 30px;
+	width: 290px;
+	height: 230px;
+	position: relative;
+	top:530px;
+	left: 480px;
+}
+
+.fontcover{
+	width: 500px;
+	height: 225px;
+	position: absolute;
+	top: 10px;
+	left: -100px;
+	padding: 20px;
+}
+.fontcover2{
+	width: 500px;
+	height: 225px;
+	position: absolute;
+	top: 10px;
+	left: -100px;
+	padding: 20px;
+}
+.fontcover a {
+	font-size: 70px;	
+	font-weight: bold;	
+	padding: 30px;		
+	width: 360px;
+	height: 40px;
+	color: #1e90ff;		
+	line-height: 20px;	
+	text-decoration: none;	
+	display: block;		
+}
+.fontcover2 a {
+	font-size: 70px;	
+	font-weight: bold;	
+	padding: 30px;		
+	width: 290px;
+	height: 40px;
+	color: #1e90ff;		
+	line-height: 20px;	
+	text-decoration: none;	
+	display: block;		
+}
+.fontcover a:hover {
+	color: #8b008b;		
+}
+.fontcover2 a:hover {
+	color: #8b008b;		
+}
+.stageselect{
+	padding: 30px;
+	width: 290px;
+	height: 230px;
+	position: relative;
+	top:395px;
+	left: 440px;
+}

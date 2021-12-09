@@ -1,0 +1,66 @@
+.stage1 {
+	padding: 30px;
+	width: 290px;
+	height: 230px;
+	position: relative;
+	top:360px;
+	left: 125px;
+}
+
+
+.fontcover{
+	width: 500px;
+	height: 225px;
+	position: absolute;
+	top: 10px;
+	left: -100px;
+	padding: 20px;
+}
+.fontcover a {
+	font-size: 80px;	
+	font-weight: bold;	
+	padding: 30px;		
+	width: 90px;
+	height: 300px;
+	color: #1e90ff;		
+	line-height: 20px;	
+	text-decoration: none;	
+	display: block;		
+	writing-mode: vertical-rl;
+}
+.fontcover a:hover {
+	color: #8b008b;		
+}
+.stage2{
+	padding: 30px;
+	width: 290px;
+	height: 230px;
+	position: relative;
+	top:70px;
+	left: 350px;
+}
+.stage3{
+	padding: 30px;
+	width: 290px;
+	height: 230px;
+	position: relative;
+	top:-220px;
+	left: 575px;
+}
+.stage4{
+	padding: 30px;
+	width: 290px;
+	height: 230px;
+	position: relative;
+	top:-510px;
+	left: 795px;
+}
+.stage5{
+	padding: 30px;
+	width: 290px;
+	height: 230px;
+	position: relative;
+	top:-800px;
+	left: 995px;
+}
+
