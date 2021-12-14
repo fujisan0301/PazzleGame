@@ -18,9 +18,10 @@ let bgIMG = [
 	'../imgs/Background/stage_4.png',
 ];
 let objIMG = [
-	'../imgs/obj/stone_1trim.png',
-	'../imgs/obj/key.png',
+	'../imgs/obj/stone_0.png',
+	'../imgs/obj/kagi.png',
 	'../imgs/obj/key_door.png',
+	'../imgs/obj/wood.png',
 ];
 let ItemIMG = [
 	'../imgs/Items/suzu.png',
@@ -62,13 +63,13 @@ let Serif = [
 	['神主', '「なに！それは誠か！」'],
 	['村人', '「はい！森の方へ行ったそうです」'],
 	['　', '神主は急いで森へ駆け出した。'],
-	['　', 'ゲーム画面へ'],
+	['　', '　'],
 	['神主', '「鉾鈴は返してもらうぞ！」'],
 	['妖魔', '「ぐぁぁぁ」'],
 	['　', '無事に鉾鈴を取り戻した神主は急ぎ神社に戻り、巫女様に届けることができました。'],
 	['　', 'その後舞を奉納することができ、祭りは大成功を収めた。'],
 	['　', 'END'],
-	['　', 'GAMEOVER'],
+	['　', '　'],
 ];
 
 let posHandle = [//ステージを背景に合わせる用の位置の配列,[x, y]
@@ -121,6 +122,11 @@ function preload() {
 		let img = document.createElement('img');
 		img.src = objIMG[i];
 		objHandle.push(img);
+	}
+	for (let i = 0; i < enemyIMG.length; i++) {
+		let img = document.createElement('img');
+		img.src = enemyIMG[i];
+		enemyHandle.push(img);
 	}
 }
 
@@ -211,6 +217,7 @@ function PLAY() {
 			}
 			if (DetectNowPoint(keyDoorPoint)) {
 				if (!keyGet) {
+					AudioPlayer(1, 1);
 					x = P_oldX;
 					y = P_oldY;
 					frame = 0;
@@ -481,7 +488,7 @@ function RenderMap() {
 					break;
 				case 2://障害物
 					let o = document.createElement('img');
-					o.src = '../imgs/obj/stone_1trim.png';
+					o.src = objHandle[0].src;
 					o.style.position = 'absolute';
 					o.id = "Obs" + obsCount;
 					obsHandle.push(o);
@@ -494,7 +501,7 @@ function RenderMap() {
 					break;
 				case 3://敵
 					let ene = document.createElement('img');
-					ene.src = enemyIMG[0];
+					ene.src = enemyHandle[0].src;
 					ene.style.position = 'absolute';
 					ene.id = "Enemy" + eneCount;
 					enmHandle.push(ene);
@@ -582,7 +589,7 @@ function RenderMap() {
 					}
 					{//表示用
 						let w = document.createElement('img');
-						w.src = '../imgs/Wall.png';
+						w.src = objHandle[3].src;
 						w.style.position = 'absolute';
 						w.id = "Wall";
 						w.style.width = SCREEN_HEIGHT / 10 + "px";
