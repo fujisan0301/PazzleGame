@@ -89,12 +89,12 @@ let old_stage_num = -2, old_page = -2, LoadFlag = false;
 const TITLE = 0, GAME = 1, TALK = 2;
 let up = false, down = false, right = false, left = false, space = false;
 let LIFE_MAX = 100;
-let x = 0, P_oldX, colX = 0, y = 0, P_oldY, colY = 0, frame = 0, Life = LIFE_MAX, dmgFlag = false, keyGet = false;
+let P_x = 0, P_oldX, colX = 0, P_y = 0, P_oldY, colY = 0, frame = 0, Life = LIFE_MAX, dmgFlag = false, keyGet = false;
 let animFrame = 0;
 let chara, charaCol, charStyle, obsStyle;
 const MOVE_WAIT = FPS / 10;
 let SCREEN_WIDTH, SCREEN_HEIGHT;
-let obsHandle = [], dmgHandle = [], enmHandle = [], goalPoint = [], wallHandle = [], keyPoint = [], keyDoorPoint = [];
+let obj_obsHandle = [], obj_dmgHandle = [], obj_enmHandle = [], obj_goalPoint = [], obj_wallHandle = [], obj_keyPoint = [], obj_keyDoorPoint = [], obj_invisiHandle = [];
 let charHandle = [], enemyHandle = [], bgHandle = [], itemHandle = [], objHandle = [];
 let bgm;
 let spriteBox, nameBox, textBox;
@@ -162,8 +162,8 @@ function main() {
 	old_stage_num = stage_num;
 
 	if (LoadFlag) {
-		PLAY();
 		Control();
+		PLAY();
 		Animation();
 	}
 
@@ -200,13 +200,93 @@ function PLAY() {
 			break;
 
 		case GAME:	//GAMEを描画するメソッド
-			Kick(obsHandle, 0);
-			Kick(enmHandle, 1);
-			Kick(wallHandle, 0);
-			if (DetectNowPoint(goalPoint)) {
-				stage_num++;
-				if (4 < stage_num) { page = 2; return; }
-				Init();
+			//プレイヤーが岩を押した
+			let obj = DetectNowPoint(null, P_x, P_y, obj_obsHandle);
+			if (obj != null) {
+				P_x = P_oldX;
+				P_y = P_oldY;
+				frame = 0;
+				let style = window.getComputedStyle(obj);
+				let objID = obj.id;
+				let objX = Number(style.getPropertyValue('left').replace("px", ""));
+				let objY = Number(style.getPropertyValue('top').replace("px", ""));
+				let old_objX = objX;
+				let old_objY = objY;
+				if (up) objY -= (SCREEN_HEIGHT / 10);
+				if (down) objY += (SCREEN_HEIGHT / 10);
+				if (left) objX -= (SCREEN_HEIGHT / 10);
+				if (right) objX += (SCREEN_HEIGHT / 10);
+				obj.style.left = objX + "px";
+				obj.style.top = objY + "px";
+				let _obj = null;
+				if (_obj == null) _obj = DetectNowPoint(objID, objX, objY, obj_obsHandle);
+				if (_obj == null) _obj = DetectNowPoint(objID, objX, objY, obj_dmgHandle);
+				if (_obj == null) _obj = DetectNowPoint(objID, objX, objY, obj_enmHandle);
+				if (_obj == null) _obj = DetectNowPoint(objID, objX, objY, obj_goalPoint);
+				if (_obj == null) _obj = DetectNowPoint(objID, objX, objY, obj_keyDoorPoint);
+				if (_obj == null) _obj = DetectNowPoint(objID, objX, objY, obj_wallHandle);
+				if (_obj == null) _obj = DetectNowPoint(objID, objX, objY, obj_keyPoint);
+				if (_obj != null ||
+					objX < 0 ||
+					objY < 0 ||
+					STAGE_HANDLE[stage_num].length * (SCREEN_HEIGHT / 12) < objX ||
+					STAGE_HANDLE.length * (SCREEN_HEIGHT / 12) < objY) {
+					obj.style.left = old_objX + "px";
+					obj.style.top = old_objY + "px";
+					frame = 0;
+				}
+			}
+
+			//プレイヤーが敵を押した
+			obj = DetectNowPoint(null, P_x, P_y, obj_enmHandle);
+			if (obj != null) {
+				P_x = P_oldX;
+				P_y = P_oldY;
+				frame = 0;
+				let style = window.getComputedStyle(obj);
+				let objID = obj.id;
+				let objX = Number(style.getPropertyValue('left').replace("px", ""));
+				let objY = Number(style.getPropertyValue('top').replace("px", ""));
+				let old_objX = objX;
+				let old_objY = objY;
+				if (up) objY -= (SCREEN_HEIGHT / 10);
+				if (down) objY += (SCREEN_HEIGHT / 10);
+				if (left) objX -= (SCREEN_HEIGHT / 10);
+				if (right) objX += (SCREEN_HEIGHT / 10);
+				obj.style.left = objX + "px";
+				obj.style.top = objY + "px";
+				let _obj = null;
+				if (_obj == null) _obj = DetectNowPoint(objID, objX, objY, obj_obsHandle);
+				if (_obj == null) _obj = DetectNowPoint(objID, objX, objY, obj_dmgHandle);
+				if (_obj == null) _obj = DetectNowPoint(objID, objX, objY, obj_enmHandle);
+				if (_obj != null) {
+					document.getElementById('Layer1').removeChild(obj);
+				}
+				if (_obj == null) _obj = DetectNowPoint(objID, objX, objY, obj_goalPoint);
+				if (_obj == null) _obj = DetectNowPoint(objID, objX, objY, obj_keyDoorPoint);
+				if (_obj == null) _obj = DetectNowPoint(objID, objX, objY, obj_wallHandle);
+				if (_obj == null) _obj = DetectNowPoint(objID, objX, objY, obj_keyPoint);
+				if (_obj != null ||
+					objX < 0 ||
+					objY < 0 ||
+					STAGE_HANDLE[stage_num].length * (SCREEN_HEIGHT / 12) < objX ||
+					STAGE_HANDLE.length * (SCREEN_HEIGHT / 12) < objY) {
+					obj.style.left = old_objX + "px";
+					obj.style.top = old_objY + "px";
+					frame = 0;
+				}
+			}
+
+			//プレイヤーが壁にぶつかった
+			obj = DetectNowPoint(null, P_x, P_y, obj_wallHandle);
+			if (obj != null ||
+				P_x < 0 ||
+				P_y < 0 ||
+				STAGE_HANDLE[stage_num].length * ( SCREEN_HEIGHT / 12) < P_x ||
+				STAGE_HANDLE.length * ( SCREEN_HEIGHT / 12) < P_y) {
+				P_x = P_oldX;
+				P_y = P_oldY;
+				frame = 0;
 			}
 
 			document.getElementById('LIFE').innerHTML = "LIFE " + Life;
@@ -215,25 +295,25 @@ function PLAY() {
 			}
 
 			//鍵扉処理
-			if (DetectNowPoint(keyPoint)) {
-				Layer0.removeChild(document.getElementById('Key'));
-				keyGet = true;
-			}
-			if (DetectNowPoint(keyDoorPoint)) {
-				if (!keyGet) {
-					AudioPlayer(1, 1);
-					x = P_oldX;
-					y = P_oldY;
-					frame = 0;
-				}
-				else {
-					Layer2.removeChild(document.getElementById('KeyDoor'))
-					x = P_oldX;
-					y = P_oldY;
-					frame = 0;
-					keyGet = false;
-				}
-			}
+			//if (DetectNowPoint(obj_keyPoint)) {
+			//	Layer0.removeChild(document.getElementById('Key'));
+			//	keyGet = true;
+			//}
+			//if (DetectNowPoint(obj_keyDoorPoint)) {
+			//	if (!keyGet) {
+			//		AudioPlayer(1, 1);
+			//		P_x = P_oldX;
+			//		P_y = P_oldY;
+			//		frame = 0;
+			//	}
+			//	else {
+			//		Layer2.removeChild(document.getElementById('KeyDoor'))
+			//		P_x = P_oldX;
+			//		P_y = P_oldY;
+			//		frame = 0;
+			//		keyGet = false;
+			//	}
+			//}
 			break;
 
 		case TALK:	//TALKパートを描画するメソッド
@@ -329,13 +409,13 @@ function Control() {
 
 		case GAME:
 			if (frame > 0) {
-				if (left) x -= SCREEN_HEIGHT / (MOVE_WAIT * 10);
-				if (right) x += SCREEN_HEIGHT / (MOVE_WAIT * 10);
-				if (up) y -= SCREEN_HEIGHT / (MOVE_WAIT * 10);
-				if (down) y += SCREEN_HEIGHT / (MOVE_WAIT * 10);
+				if (left) P_x -= SCREEN_HEIGHT / (MOVE_WAIT * 10);
+				if (right) P_x += SCREEN_HEIGHT / (MOVE_WAIT * 10);
+				if (up) P_y -= SCREEN_HEIGHT / (MOVE_WAIT * 10);
+				if (down) P_y += SCREEN_HEIGHT / (MOVE_WAIT * 10);
 			}
 			else {
-				if (DetectNowPoint(dmgHandle)) {
+				if (DetectNowPoint(null, P_x, P_y, obj_dmgHandle)) {
 					if (!dmgFlag) {
 						dmgFlag = true;
 						if (Life > 0) {
@@ -348,10 +428,10 @@ function Control() {
 			}
 			if (frame > -2) frame--;
 
-			chara.style.left = x + 'px';
-			chara.style.top = y + 'px';
-			charaCol.style.left = x - SCREEN_HEIGHT / 166.7 + 'px';
-			charaCol.style.top = y - SCREEN_HEIGHT / 166.7 + 'px';
+			chara.style.left = P_x + 'px';
+			chara.style.top = P_y + 'px';
+			charaCol.style.left = P_x - SCREEN_HEIGHT / 166.7 + 'px';
+			charaCol.style.top = P_y - SCREEN_HEIGHT / 166.7 + 'px';
 			break;
 
 		case TALK:
@@ -391,10 +471,10 @@ function KeyDown(event) {
 						P_oldX = Number(charStyle.getPropertyValue('left').replace("px", ""));
 						P_oldY = Number(charStyle.getPropertyValue('top').replace("px", ""));
 						switch (keycode) {
-							case 37: if (SCREEN_HEIGHT / 10 < x) { left = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
-							case 38: if (SCREEN_HEIGHT / 10 < y) { up = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
-							case 39: if (x < SCREEN_HEIGHT / 10 * (STAGE_HANDLE[0].length - 1)) { right = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
-							case 40: if (y < SCREEN_HEIGHT / 10 * (STAGE_HANDLE.length - 1)) { down = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); } break;
+							case 37: left = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); break;
+							case 38: up = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); break;
+							case 39: right = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); break;
+							case 40: down = true; frame = MOVE_WAIT; Life--; dmgFlag = false; AudioPlayer(1, 0); break;
 						}
 					}
 					switch (keycode) {
@@ -431,14 +511,29 @@ function KeyUp() {
 }
 
 function RenderMap() {
-	while (obsHandle[0] != null) {
-		obsHandle.pop();
+	while (obj_obsHandle[0] != null) {
+		obj_obsHandle.pop();
 	}
-	while (dmgHandle[0] != null) {
-		dmgHandle.pop();
+	while (obj_dmgHandle[0] != null) {
+		obj_dmgHandle.pop();
 	}
-	while (enmHandle[0] != null) {
-		enmHandle.pop();
+	while (obj_enmHandle[0] != null) {
+		obj_enmHandle.pop();
+	}
+	while (obj_goalPoint[0] != null) {
+		obj_goalPoint.pop();
+	}
+	while (obj_keyDoorPoint[0] != null) {
+		obj_keyDoorPoint.pop();
+	}
+	while (obj_keyPoint[0] != null) {
+		obj_keyPoint.pop();
+	}
+	while (obj_wallHandle[0] != null) {
+		obj_wallHandle.pop();
+	}
+	while (obj_invisiHandle[0] != null) {
+		obj_invisiHandle.pop();
 	}
 	if (document.getElementById('BGLayer') != null) {
 		document.getElementById('BGLayer').remove();
@@ -493,7 +588,7 @@ function RenderMap() {
 					d.style.position = 'absolute';
 					d.src = '../imgs/Damage.png';
 					d.id = "damage" + dmCount;
-					dmgHandle.push(d);
+					obj_dmgHandle.push(d);
 					dmCount++;
 					d.style.width = SCREEN_HEIGHT / 11 + "px";
 					d.style.height = SCREEN_HEIGHT / 11 + "px";
@@ -506,7 +601,7 @@ function RenderMap() {
 					o.src = objHandle[0].src;
 					o.style.position = 'absolute';
 					o.id = "Obs" + obsCount;
-					obsHandle.push(o);
+					obj_obsHandle.push(o);
 					obsCount++;
 					o.style.width = SCREEN_HEIGHT / 11 + "px";
 					o.style.height = SCREEN_HEIGHT / 11 + "px";
@@ -519,7 +614,7 @@ function RenderMap() {
 					ene.src = enemyHandle[0].src;
 					ene.style.position = 'absolute';
 					ene.id = "Enemy" + eneCount;
-					enmHandle.push(ene);
+					obj_enmHandle.push(ene);
 					eneCount++;
 					ene.style.width = SCREEN_HEIGHT / 11 + "px";
 					ene.style.height = SCREEN_HEIGHT / 11 + "px";
@@ -532,7 +627,7 @@ function RenderMap() {
 					Key.src = objHandle[1].src;
 					Key.style.position = 'absolute';
 					Key.id = "Key";
-					keyPoint.push(Key);
+					obj_keyPoint.push(Key);
 					Key.style.width = SCREEN_HEIGHT / 11 + "px";
 					Key.style.height = SCREEN_HEIGHT / 11 + "px";
 					Key.style.top = SCREEN_HEIGHT / 250 + i * SCREEN_HEIGHT / 10 + "px";
@@ -544,7 +639,7 @@ function RenderMap() {
 					kDoor.src = objHandle[2].src;
 					kDoor.style.position = 'absolute';
 					kDoor.id = "KeyDoor";
-					keyDoorPoint.push(kDoor);
+					obj_keyDoorPoint.push(kDoor);
 					kDoor.style.width = SCREEN_HEIGHT / 11 + "px";
 					kDoor.style.height = SCREEN_HEIGHT / 11 + "px";
 					kDoor.style.top = SCREEN_HEIGHT / 250 + i * SCREEN_HEIGHT / 10 + "px";
@@ -556,7 +651,7 @@ function RenderMap() {
 					goal.src = enemyHandle[1].src;
 					goal.style.position = 'absolute';
 					goal.id = "Goal";
-					goalPoint.push(goal);
+					obj_goalPoint.push(goal);
 					goal.style.width = SCREEN_HEIGHT / 11 + "px";
 					goal.style.height = SCREEN_HEIGHT / 11 + "px";
 					goal.style.top = SCREEN_HEIGHT / 250 + i * SCREEN_HEIGHT / 10 + "px";
@@ -583,8 +678,8 @@ function RenderMap() {
 						chara = c;
 						c.style.width = SCREEN_HEIGHT / 10 - SCREEN_HEIGHT / 50 + "px";
 						c.style.height = SCREEN_HEIGHT / 10 - SCREEN_HEIGHT / 50 + "px";
-						x = (1 + e * 10) * (SCREEN_HEIGHT / 100);
-						y = (1 + i * 10) * (SCREEN_HEIGHT / 100);
+						P_x = (1 + e * 10) * (SCREEN_HEIGHT / 100);
+						P_y = (1 + i * 10) * (SCREEN_HEIGHT / 100);
 						c.style.position = 'absolute';
 						Layer1.appendChild(c);
 					}
@@ -595,7 +690,7 @@ function RenderMap() {
 						w.src = '../imgs/collider.png';
 						w.style.position = 'absolute';
 						w.id = "Wall";
-						wallHandle.push(w);
+						obj_wallHandle.push(w);
 						w.style.width = SCREEN_HEIGHT / 11 + "px";
 						w.style.height = SCREEN_HEIGHT / 11 + "px";
 						w.style.top = SCREEN_HEIGHT / 250 + i * SCREEN_HEIGHT / 10 + "px";
@@ -628,34 +723,34 @@ function Kick(array, num) {
 		let objX = Number(obj.getPropertyValue('left').replace("px", ""));
 		let objY = Number(obj.getPropertyValue('top').replace("px", ""));
 
-		if (((x > objX && x - SCREEN_HEIGHT / 75 < objX + SCREEN_HEIGHT / 17) ||
-			(objX > x && objX < x + SCREEN_HEIGHT / 17)) &&
-			((y > objY && y - SCREEN_HEIGHT / 75 < objY + SCREEN_HEIGHT / 12.3) ||//上
-				(objY > y && objY < y + SCREEN_HEIGHT / 11.8))) {//下
-			let OBS_judgeDir = SertchAroundObj(objX, objY, obsHandle);
-			let ENM_judgeDir = SertchAroundObj(objX, objY, enmHandle);
-			let DMG_judgeDir = SertchAroundObj(objX, objY, dmgHandle);
-			let WALL_judgeDir = SertchAroundObj(objX, objY, wallHandle);
-			let KEY_judgeDir = SertchAroundObj(objX, objY, keyPoint);
-			let KEY_DOOR_judgeDir = SertchAroundObj(objX, objY, keyDoorPoint);
-			let GOAL_judgeDir = SertchAroundObj(objX, objY, goalPoint);
+		if (((P_x > objX && P_x - SCREEN_HEIGHT / 75 < objX + SCREEN_HEIGHT / 17) ||
+			(objX > P_x && objX < P_x + SCREEN_HEIGHT / 17)) &&
+			((P_y > objY && P_y - SCREEN_HEIGHT / 75 < objY + SCREEN_HEIGHT / 12.3) ||//上
+				(objY > P_y && objY < P_y + SCREEN_HEIGHT / 11.8))) {//下
+			let OBS_judgeDir = SertchAroundObj(objX, objY, obj_obsHandle);
+			let ENM_judgeDir = SertchAroundObj(objX, objY, obj_enmHandle);
+			let DMG_judgeDir = SertchAroundObj(objX, objY, obj_dmgHandle);
+			let WALL_judgeDir = SertchAroundObj(objX, objY, obj_wallHandle);
+			let KEY_judgeDir = SertchAroundObj(objX, objY, obj_keyPoint);
+			let KEY_DOOR_judgeDir = SertchAroundObj(objX, objY, obj_keyDoorPoint);
+			let GOAL_judgeDir = SertchAroundObj(objX, objY, obj_goalPoint);
 
 			if (up) {
 				if (OBS_judgeDir[0] == 1 || (DMG_judgeDir[0] == 1 && num == 1) || WALL_judgeDir[0] == 1) {
 					frame = 0;
-					y = P_oldY;
+					P_y = P_oldY;
 					if (num == 1) Layer1.removeChild(item);
 					AudioPlayer(1, 1);
 				}
-				else if (ENM_judgeDir[0] == 1 || WALL_judgeDir[0] == 1 || array == wallHandle || KEY_DOOR_judgeDir[0] == 1 || KEY_judgeDir[0] == 1 || GOAL_judgeDir[0] == 1) {
+				else if (ENM_judgeDir[0] == 1 || WALL_judgeDir[0] == 1 || array == obj_wallHandle || KEY_DOOR_judgeDir[0] == 1 || KEY_judgeDir[0] == 1 || GOAL_judgeDir[0] == 1) {
 					frame = 0;
-					y = P_oldY;
+					P_y = P_oldY;
 					AudioPlayer(1, 1);
 				}
 				else {
 					item.style.top = objY - SCREEN_HEIGHT / 10 + "px";
 					up = false;
-					y = P_oldY;
+					P_y = P_oldY;
 					AudioPlayer(1, 1);
 				}
 			}
@@ -663,19 +758,19 @@ function Kick(array, num) {
 			if (down) {
 				if (OBS_judgeDir[1] == 1 || (DMG_judgeDir[1] == 1 && num == 1) || WALL_judgeDir[1] == 1) {
 					frame = 0;
-					y = P_oldY;
+					P_y = P_oldY;
 					if (num == 1) Layer1.removeChild(item);
 					AudioPlayer(1, 1);
 				}
-				else if (ENM_judgeDir[1] == 1 || WALL_judgeDir[1] == 1 || array == wallHandle || KEY_DOOR_judgeDir[1] == 1 || KEY_judgeDir[1] == 1 || GOAL_judgeDir[1] == 1) {
+				else if (ENM_judgeDir[1] == 1 || WALL_judgeDir[1] == 1 || array == obj_wallHandle || KEY_DOOR_judgeDir[1] == 1 || KEY_judgeDir[1] == 1 || GOAL_judgeDir[1] == 1) {
 					frame = 0;
-					y = P_oldY;
+					P_y = P_oldY;
 					AudioPlayer(1, 1);
 				}
 				else {
 					item.style.top = objY + SCREEN_HEIGHT / 10 + "px";
 					down = false;
-					y = P_oldY;
+					P_y = P_oldY;
 					AudioPlayer(1, 1);
 				}
 			}
@@ -683,19 +778,19 @@ function Kick(array, num) {
 			if (left) {
 				if (OBS_judgeDir[2] == 1 || (DMG_judgeDir[2] == 1 && num == 1) || WALL_judgeDir[2] == 1) {
 					frame = 0;
-					x = P_oldX;
+					P_x = P_oldX;
 					if (num == 1) Layer1.removeChild(item);
 					AudioPlayer(1, 1);
 				}
-				else if (ENM_judgeDir[2] == 1 || WALL_judgeDir[2] == 1 || array == wallHandle || KEY_DOOR_judgeDir[2] == 1 || KEY_judgeDir[2] == 1 || GOAL_judgeDir[2] == 1) {
+				else if (ENM_judgeDir[2] == 1 || WALL_judgeDir[2] == 1 || array == obj_wallHandle || KEY_DOOR_judgeDir[2] == 1 || KEY_judgeDir[2] == 1 || GOAL_judgeDir[2] == 1) {
 					frame = 0;
-					x = P_oldX;
+					P_x = P_oldX;
 					AudioPlayer(1, 1);
 				}
 				else {
 					item.style.left = objX - SCREEN_HEIGHT / 10 + "px";
 					left = false;
-					x = P_oldX;
+					P_x = P_oldX;
 					AudioPlayer(1, 1);
 				}
 			}
@@ -703,19 +798,19 @@ function Kick(array, num) {
 			if (right) {
 				if (OBS_judgeDir[3] == 1 || (DMG_judgeDir[3] == 1 && num == 1) || WALL_judgeDir[3] == 1) {
 					frame = 0;
-					x = P_oldX;
+					P_x = P_oldX;
 					if (num == 1) Layer1.removeChild(item);
 					AudioPlayer(1, 1);
 				}
-				else if (ENM_judgeDir[3] == 1 || WALL_judgeDir[3] == 1 || array == wallHandle || KEY_DOOR_judgeDir[3] == 1 || KEY_judgeDir[3] == 1 || GOAL_judgeDir[3] == 1) {
+				else if (ENM_judgeDir[3] == 1 || WALL_judgeDir[3] == 1 || array == obj_wallHandle || KEY_DOOR_judgeDir[3] == 1 || KEY_judgeDir[3] == 1 || GOAL_judgeDir[3] == 1) {
 					frame = 0;
-					x = P_oldX;
+					P_x = P_oldX;
 					AudioPlayer(1, 1);
 				}
 				else {
 					item.style.left = objX + SCREEN_HEIGHT / 10 + "px";
 					right = false;
-					x = P_oldX;
+					P_x = P_oldX;
 					AudioPlayer(1, 1);
 				}
 			}
@@ -739,19 +834,21 @@ function SertchAroundObj(C_objX, C_objY, arrayData) {
 	return judge_dir;
 }
 
-function DetectNowPoint(Handle) {
+function DetectNowPoint(id, x, y, Handle) {
 	for (let i = 0; i < Handle.length; i++) {
+		if (id == Handle[i].id) continue;
 		let style = window.getComputedStyle(Handle[i]);
-		let pointX = Number(style.getPropertyValue('left').replace("px", ""));
-		let pointY = Number(style.getPropertyValue('top').replace("px", ""));
+		let pointX = Math.floor(Number(style.getPropertyValue('left').replace("px", "")));
+		let pointY = Math.floor(Number(style.getPropertyValue('top').replace("px", "")));
 		if (((x > pointX && x - SCREEN_HEIGHT / 75 < pointX + SCREEN_HEIGHT / 17) ||
 			(pointX > x && pointX < x + SCREEN_HEIGHT / 17)) &&
 			((y > pointY && y - SCREEN_HEIGHT / 75 < pointY + SCREEN_HEIGHT / 12.3) ||//上
-				(pointY > y && pointY < y + SCREEN_HEIGHT / 11.8))) {//下
-			return true;
+				(pointY > y && pointY < y + SCREEN_HEIGHT / 11.8)) || //下
+			(y == pointY && x == pointX)) {//一致
+			return Handle[i];
 		}
 	}
-	return false;
+	return null;
 }
 
 //TALK
@@ -831,9 +928,6 @@ let count = 0;
 let serif_num = 0;
 let SERIF_SPEED = 2;
 let waitcounter = 0;
-
-let CharaName = [
-];
 
 //最大縦横10マス、0床,1ダメ床,2障害物,3敵,4鍵,5扉,6ゴール,7プレイヤー,8進行不可能マス
 function GetStage(num) {
