@@ -8,6 +8,7 @@ let charIMG = [
 ];
 let enemyIMG = [
 	'../imgs/Char/Enemy/Enemy_0.png',
+	'../imgs/Char/Enemy/Enemy_1.png',
 ];
 let bgIMG = [
 	'../imgs/Background/TALK_BG.png',
@@ -22,6 +23,7 @@ let objIMG = [
 	'../imgs/obj/kagi.png',
 	'../imgs/obj/key_door.png',
 	'../imgs/obj/wood.png',
+	'../imgs/obj/goal.png',
 ];
 let ItemIMG = [
 	'../imgs/Items/suzu.png',
@@ -30,6 +32,7 @@ let soundFILE = [
 	[//soundFILE[0]はBGMのパス配列
 		'../snds/BGM/Talk_0.mp3',//トークパートで一番最初に流すBGM
 		'../snds/BGM/Talk_1.mp3',//セリフ「神主様！」のところからこれに切り替える
+		'../snds/BGM/Talk_2.mp3',//ED
 		'../snds/BGM/Battle_0.mp3',//戦闘BGMその１
 		'../snds/BGM/Battle_1.mp3',//戦闘BGMその２
 		'../snds/BGM/Battle_2.mp3',//ラスボス戦
@@ -202,6 +205,7 @@ function PLAY() {
 			Kick(wallHandle, 0);
 			if (DetectNowPoint(goalPoint)) {
 				stage_num++;
+				if (4 < stage_num) { page = 2; return; }
 				Init();
 			}
 
@@ -264,7 +268,7 @@ function Init() {
 			//posHandle[4][1] = SCREEN_HEIGHT / 7;
 
 			if (GetStage(stage_num) != null) { STAGE_HANDLE = GetStage(stage_num); }
-			else { STAGE_HANDLE = GetStage(0); stage_num = 0; }
+			else { return; }
 
 			RenderMap();
 			//LIFE
@@ -281,12 +285,19 @@ function Init() {
 			l.innerHTML = "LIFE " + Life;
 			isLookNorth = false;
 
-			bgm = AudioPlayer(0, 2);
+			switch (stage_num) {
+				case 0: bgm = AudioPlayer(0, 3); break;
+				case 1: bgm = AudioPlayer(0, 3); break;
+				case 2: bgm = AudioPlayer(0, 4); break;
+				case 3: bgm = AudioPlayer(0, 4); break;
+				case 4: bgm = AudioPlayer(0, 5); break;
+			}
+
 			LoadFlag = true;
 			break;
 
 		case TALK:	//TALKパートを描画するメソッド
-			bgm = AudioPlayer(0, 0);
+
 			i = document.createElement("div");
 			i.id = "BGLayer";
 			i.appendChild(Background(0, SCREEN_WIDTH + "px", SCREEN_HEIGHT + "px"));
@@ -294,7 +305,13 @@ function Init() {
 			spriteBox = CreateSpriteBox();
 			CreateTextBox();
 			count = 0;
-			if(stage_num == 5) serif_num = 20;
+			if (stage_num == 5) serif_num = 20;
+
+			switch (serif_num) {
+				case 0: bgm = AudioPlayer(0, 0); break;
+				case 20: bgm = AudioPlayer(0, 2); break;
+			}
+
 			LoadFlag = true;
 			break;
 	}
@@ -390,8 +407,6 @@ function KeyDown(event) {
 							Life = GetStageInfo(stage_num);
 							isLookNorth = false;
 							stage_num++;
-							//Init();
-							//RenderMap();
 							break;
 					}
 				}
@@ -538,7 +553,7 @@ function RenderMap() {
 					break;
 				case 6://ゴール
 					let goal = document.createElement('img');
-					goal.src = '../imgs/Goal.png';
+					goal.src = enemyHandle[1].src;
 					goal.style.position = 'absolute';
 					goal.id = "Goal";
 					goalPoint.push(goal);
@@ -870,7 +885,7 @@ function GetStage(num) {
 				[0, 0, 0, 0, 8, 8, 8, 8, 0, 0],
 				[0, 0, 0, 0, 8, 6, 0, 8, 8, 8],
 				[8, 8, 8, 8, 8, 2, 5, 3, 2, 8],
-				[8, 4, 0, 2, 3, 2, 0, 2, 2, 8],
+				[8, 4, 0, 2, 3, 2, 0, 2, 0, 8],
 				[8, 3, 2, 0, 3, 8, 2, 3, 0, 8],
 				[8, 0, 2, 3, 2, 3, 3, 0, 2, 8],
 				[8, 2, 0, 0, 2, 0, 2, 2, 3, 8],
@@ -887,7 +902,7 @@ function GetStageInfo(num) {
 		case 1: return 48;
 		case 2: return 29;
 		case 3: return 29;
-		case 4: return 39;
+		case 4: return 41;
 	}
 }
 
@@ -991,7 +1006,7 @@ function Animation() {
 					page = 1;
 					serif_num++;
 					break;
-				case 24:
+				case 25:
 					window.location.href = 'タイトル.html';
 					break;
 			}
